@@ -3,9 +3,9 @@ spring:
     name: SmartVan
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/smartvan
-    username: postgres
-    password: Password123!
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/smartvan}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Password123!}
 
   jpa:
     hibernate:

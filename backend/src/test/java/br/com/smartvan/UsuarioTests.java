@@ -2,12 +2,10 @@ package br.com.smartvan;
 
 import br.com.smartvan.model.Usuario;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
-public class UsuarioTests {
+class UsuarioTests {
 
     @Test
     void deveAlterarNome() {
