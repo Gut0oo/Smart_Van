@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: SmartVan
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/smartvan
+    username: postgres
+    password: Password123!
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
