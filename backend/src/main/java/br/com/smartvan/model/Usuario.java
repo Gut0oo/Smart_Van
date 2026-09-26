@@ -39,6 +39,13 @@ public class Usuario {
 
     public Usuario(){}
 
+    public boolean validarEmail(){ return email != null && email.contains("@") && email.contains(".") && !email.isBlank(); }
+
+    public void ativarConta(){ this.status = StatusConta.ATIVA; }
+    public void desativarConta(){ this.status = StatusConta.BLOQUEADA; }
+    public boolean estaAtiva(){ return this.status == StatusConta.ATIVA; }
+
+
     @Override
     public String toString() {
         return "Usuario{" +
