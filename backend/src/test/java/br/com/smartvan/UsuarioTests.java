@@ -77,7 +77,7 @@ class UsuarioTests {
         assertEquals("12345678900", usuario.getCpf());
     }
 
-    //testes para ativação ou desativação da conta.
+    //testes para ativação ou desativação da conta
     @Test
     void deveRetornarTrueQuandoUsuarioEstiverAtivo(){
         usuario.ativarConta();
