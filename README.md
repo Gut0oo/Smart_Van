@@ -18,6 +18,7 @@ Para os pais, a plataforma facilita a busca por um transporte escolar confiável
 - Java
 - PostGreeSQL
 - SpringBoot
+- React Native
 
 ## 🔹Criadores 
 
