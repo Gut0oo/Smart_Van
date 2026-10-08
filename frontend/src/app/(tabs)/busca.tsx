@@ -13,56 +13,47 @@ import {
   SafeAreaView,
   Edge,
 } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
-// 1. Dados Fixos (Mock) para você testar a renderização da lista
-const DADOS_MOTORISTAS = [
-  { id: '1', nome: 'Carlos Mendes', veiculo: 'Renault Master', ano: '2021', vagas: 4, escolas: 2, validado: true, escola: 'Escola 1', cidade: 'Cidade 1' },
-  { id: '2', nome: 'Rita Alencar', veiculo: 'Mercedes Sprinter', ano: '2019', vagas: 1, escolas: 3, validado: true, escola: 'Escola 2', cidade: 'Cidade 1' },
-  { id: '3', nome: 'João Petrini', veiculo: 'Iveco Daily', ano: '2022', vagas: 6, escolas: 1, validado: true, escola: 'Escola 1', cidade: 'Cidade 3' },
+
+const DADOS_MOTORISTAS = [  //eventualmente vai ser uma query já filtrada
+  { id: '1', nome: 'Carlos Mendes', veiculo: 'Renault Master', ano: '2021', vagasTotais: 10, vagas: 4, escolas: [1], validado: true, cidade: [2, 3], tipo: 'van', marca: 'renault', placa: 'ABC-1234' },
+  { id: '2', nome: 'Rita Alencar', veiculo: 'Mercedes Sprinter', ano: '2019', vagasTotais: 10, vagas: 1, escolas: [2, 3, 4], validado: true, cidade: [1], tipo: 'van', marca: 'renault', placa: 'ABC-1234'  },
+  { id: '3', nome: 'João Petrini', veiculo: 'Iveco Daily', ano: '2022', vagasTotais: 10, vagas: 6, escolas: [1, 2], validado: true, cidade: [1, 2], tipo: 'van', marca: 'renault', placa: 'ABC-1234'  },
 ];
 
 const escola_data = [
-    {
-      value: '1',
-      lable: 'Escola 1',
-    },
-    {
-      value: '2',
-      lable: 'Escola 2',
-    },
-    {
-      value: '3',
-      lable: 'Escola 3',
-    },
-    {
-      value: '4',
-      lable: 'Escola 4',
-    },
-    {
-      value: '5',
-      lable: 'Escola 5',
-    },
+  {id: 0, lable: 'Todas as escolas', bairro: ''},
+  { id: 1, lable: 'EE Jardim das Flores', bairro: 'Centro' },
+  { id: 2, lable: 'Colégio São Bento', bairro: 'Vila Nova' },
+  { id: 3, lable: 'Escola 3', bairro: 'Jardim Amália' },
+  { id: 4, lable: 'Escola 4', bairro: 'Bela Vista' },
+  { id: 5, lable: 'Escola 5', bairro: 'Industrial' },
 ];
 
 const cidade_data = [
     {
-      value: '1',
+      id: 0,
+      lable: 'Todas as cidades'
+    },  
+    {
+      id: 1,
       lable: 'Cidade 1',
     },
     {
-      value: '2',
+      id: 2,
       lable: 'Cidade 2',
     },
     {
-      value: '3',
+      id: 3,
       lable: 'Cidade 3',
     },
     {
-      value: '4',
+      id: 4,
       lable: 'Cidade 4',
     },
     {
-      value: '5',
+      id: 5,
       lable: 'Cidade 5',
     },
 ];
@@ -72,44 +63,58 @@ interface Motorista {
   nome: string;
   veiculo: string;
   ano: string;
+  vagasTotais: number;
   vagas: number;
-  escolas: number;
+  escolas: number[];
   validado: boolean;
+  cidade: number[];
+  tipo: string;
+  marca: string;
+  placa: string;
 }
 
 export default function BuscaScreen() {
+  const router = useRouter();
   // Estado para capturar o que o usuário digita na busca
   const [termoBusca, setTermoBusca] = useState('');
-  const [escolaFiltro, setEscolaFiltro] = useState(1);
-  const [cidadeFiltro, setCidadeFiltro] = useState(1);
+  const [escolaFiltro, setEscolaFiltro] = useState(0);
+  const [cidadeFiltro, setCidadeFiltro] = useState(0);
   const [vagasFiltro, setVagasFiltro] = useState(false);
 
   // 2. Componente que renderiza CADA item da lista (O Card do Motorista)
   const renderMotorista = ({ item }: { item: Motorista }) => (
-    <View style={styles.card}>
-      {/* Círculo simulando a foto/avatar */}
-      <View style={styles.avatar} />
+    <TouchableOpacity 
+      onPress={() => router.push({
+        pathname: '/perfil' as const,
+        params: { id: item.id, nome: item.nome, veiculo: item.veiculo, ano: item.ano, vagasTotais: item.vagasTotais, vagas: item.vagas, validado: String(item.validado), escolas: JSON.stringify(item.escolas), cidades: JSON.stringify(item.cidade), tipo: item.tipo, marca: item.marca, placa: item.placa }
+      })}
+    >
 
-      <View style={styles.cardContent}>
-        <Text style={styles.nomeMotorista}>{item.nome}</Text>
-        <Text style={styles.textoVeiculo}>{item.veiculo} - {item.ano}</Text>
-        
-        {/* Linha das tags de vagas e escolas */}
-        <View style={styles.tagsContainer}>
-          <Text style={styles.tagBadge}>{item.vagas} VAGAS</Text>
-          <Text style={styles.tagBadge}>{item.escolas} ESCOLAS</Text>
+      <View style={styles.card}>
+        {/* Círculo simulando a foto/avatar */}
+        <View style={styles.avatar} />
+
+        <View style={styles.cardContent}>
+          <Text style={styles.nomeMotorista}>{item.nome}</Text>
+          <Text style={styles.textoVeiculo}>{item.veiculo} - {item.ano}</Text>
+          
+          {/* Linha das tags de vagas e escolas */}
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagBadge}>{item.vagas} VAGAS</Text>
+            <Text style={styles.tagBadge}>{item.escolas.length} ESCOLAS</Text>
+          </View>
         </View>
+
+        {/* Selo posicionado no canto */}
+        {item.validado && (
+          <View style={styles.seloValidado}>
+            <Text style={styles.textoValidado}>● VALIDADO</Text>
+          </View>
+        )}
       </View>
-
-      {/* Selo posicionado no canto */}
-      {item.validado && (
-        <View style={styles.seloValidado}>
-          <Text style={styles.textoValidado}>● VALIDADO</Text>
-        </View>
-      )}
-    </View>
+    </TouchableOpacity>
   );
-  if(termoBusca == ''){
+  if(termoBusca == '' && escolaFiltro == 0 && cidadeFiltro == 0){
     return (
       // SafeAreaView garante que o topo não fique escondido sob a barra de status do celular
       <SafeAreaView style={styles.container}>
@@ -134,7 +139,7 @@ export default function BuscaScreen() {
               maxHeight={200}
               value={escolaFiltro}
               data={escola_data}
-              valueField="value"
+              valueField="id"
               labelField="lable"
               imageField="image"
               placeholder="Escolas"
@@ -152,7 +157,7 @@ export default function BuscaScreen() {
               maxHeight={200}
               value={cidadeFiltro}
               data={cidade_data}
-              valueField="value"
+              valueField="id"
               labelField="lable"
               imageField="image"
               placeholder="Cidades"
