@@ -1,0 +1,1 @@
+objetivo: acesso ao Bd (salva, consulta, atualiza, deleta os dados)

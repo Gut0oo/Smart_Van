@@ -1,0 +1,1 @@
+objetivo: define quais infos a requisição pode mandar e quais infos a resposta vai retorna

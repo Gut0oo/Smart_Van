@@ -1,0 +1,1 @@
+objetivo: vai determinar as regras do negocio
