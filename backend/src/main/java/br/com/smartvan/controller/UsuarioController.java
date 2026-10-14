@@ -1,23 +1,27 @@
 package br.com.smartvan.controller;
 
-import br.com.smartvan.model.Usuario;
-import br.com.smartvan.repository.UsuarioRepository;
+import br.com.smartvan.dto.UsuarioRequestDTO;
+import br.com.smartvan.dto.UsuarioResponseDTO;
+import br.com.smartvan.service.UsuarioService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/usuarios")
 public class UsuarioController {
 
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
-    public UsuarioController(UsuarioRepository usuarioRepository){
-        this.usuarioRepository = usuarioRepository;
+    public UsuarioController(UsuarioService usuarioService) {
+        this.usuarioService = usuarioService;
     }
 
     @PostMapping
-    public Usuario salvarUsuario(@RequestBody Usuario usuario){
-        System.out.println("Usuario recebido: " + usuario);
+    @ResponseStatus(HttpStatus.CREATED)
+    public UsuarioResponseDTO cadastrar(@RequestBody UsuarioRequestDTO dto) {
 
-        return usuarioRepository.save(usuario);
+        return usuarioService.salvarUsuario(dto);
     }
+
 }
