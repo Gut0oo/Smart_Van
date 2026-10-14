@@ -1,27 +1,35 @@
 package br.com.smartvan.model;
 
 import br.com.smartvan.enums.TipoVeiculo;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 
+@Entity
+@Table(name = "veiculos")
 public class Veiculo {
 
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "veiculo_id")
+    private Long veiculo_id;
 
+    @Column(name = "placa")
     private String placa;
+    @Column(name = "modelo")
     private String modelo;
 
+    @Column(name = "ano")
     private int ano;
+
+    @Column(name = "capacidade")
     private int capacidade;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo")
     private TipoVeiculo tipo;
 
     public Veiculo(TipoVeiculo tipo, String placa, String modelo, int capacidade, int ano) {
@@ -30,16 +38,5 @@ public class Veiculo {
         this.modelo = modelo;
         this.capacidade = capacidade;
         this.ano = ano;
-    }
-
-    @Override
-    public String toString() {
-        return "Veiculo{" +
-                "ano=" + ano +
-                ", placa='" + placa + '\'' +
-                ", modelo='" + modelo + '\'' +
-                ", capacidade=" + capacidade +
-                ", tipo=" + tipo +
-                '}';
     }
 }
