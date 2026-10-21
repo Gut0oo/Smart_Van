@@ -1,5 +1,6 @@
 package br.com.smartvan;
 
+import br.com.smartvan.enums.StatusConta;
 import br.com.smartvan.enums.TipoUsuario;
 import br.com.smartvan.model.Usuario;
 import br.com.smartvan.repository.UsuarioRepository;
@@ -22,7 +23,10 @@ class UsuarioRepositoryTests {
         usuario.setNome("Gustavo");
         usuario.setEmail("gustavo@email.com");
         usuario.setSenha("senha-de-teste");
+        usuario.setCpf("12345678900");
+        usuario.setTelefone("11999999999");
         usuario.setTipo(TipoUsuario.RESPONSAVEL);
+        usuario.setStatus(StatusConta.PENDENTE);
 
         Usuario usuarioSalvo = usuarioRepository.saveAndFlush(usuario);
 

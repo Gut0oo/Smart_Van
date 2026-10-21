@@ -5,18 +5,27 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Getter
 @Setter
 
 @Entity
 @Table(name = "motoristas")
+@PrimaryKeyJoinColumn(name = "usuario_id")
 public class Motorista extends Usuario{
 
-    @OneToOne
-    @JoinColumn(name = "veiculo_id")
-    private Veiculo veiculo;
-
     @Enumerated(EnumType.STRING)
-    @Column(name = "status_validacao", nullable = false)
-    private StatusMotorista statusMotorista;
+    @Column(name = "status_validacao", length = 30, nullable = false)
+    private StatusMotorista statusValidacao;
+
+    //escolas atendidas pelo motorista (usado na busca por escola)
+    @ManyToMany
+    @JoinTable(
+            name = "motoristas_escolas",
+            joinColumns = @JoinColumn(name = "motorista_id"),
+            inverseJoinColumns = @JoinColumn(name = "escola_id")
+    )
+    private Set<Escola> escolasAtendidas = new HashSet<>();
 }

@@ -17,14 +17,18 @@ public class Aluno {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "aluno_id")
-    private long aluno_id;
+    private Long id;
 
-    @Column(name = "nome")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "escola_id")
+    private Escola escola;
+
+    @Column(name = "nome", nullable = false)
     private String nome;
 
-    @Column(name = "data_nascimento")
+    @Column(name = "data_nascimento", nullable = false)
     private LocalDate dataNascimento;
 
-    @Column(name = "serie")
+    @Column(name = "serie", length = 30)
     private String serie;
 }

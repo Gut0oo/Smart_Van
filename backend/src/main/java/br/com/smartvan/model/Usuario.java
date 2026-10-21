@@ -20,26 +20,26 @@ public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "usuario_id")
-    private Long usuario_id;
+    private Long id;
 
     @Column(name = "email", unique = true, nullable = false)
     private String email;
-    @Column(name = "senha_hash")
+    @Column(name = "senha_hash", nullable = false)
     private String senha;
 
-    @Column(name = "nome")
+    @Column(name = "nome", nullable = false)
     private String nome;
-    @Column(name = "cpf", unique = true, nullable = false)
+    @Column(name = "cpf", length = 11, unique = true, nullable = false)
     private String cpf;
-    @Column(name = "telefone")
+    @Column(name = "telefone", length = 20, nullable = false)
     private String telefone;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo")
+    @Column(name = "tipo", length = 30, nullable = false)
     private TipoUsuario tipo;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", length = 30, nullable = false)
     private StatusConta status;
 
     @CreationTimestamp
