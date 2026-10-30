@@ -20,6 +20,11 @@ public class Motorista extends Usuario{
     @Column(name = "status_validacao", length = 30, nullable = false)
     private StatusMotorista statusValidacao;
 
+    //de onde a van sai na ida e para onde volta no fim da volta (casa ou garagem)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "endereco_partida_id")
+    private Endereco enderecoPartida;
+
     //escolas atendidas pelo motorista (usado na busca por escola)
     @ManyToMany
     @JoinTable(
