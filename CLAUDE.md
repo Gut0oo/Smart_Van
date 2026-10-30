@@ -28,7 +28,7 @@ backend/src/main/java/br/com/smartvan/
   model/        entidades JPA
   enums/        enums
   exception/    RegraNegocioException, resposta de erro e tratador global
-  security/     filtro do token de sessão e usuário logado
+  security/     interceptor do usuário logado e anotação de papel
   event/        eventos internos (ex.: ContratoAtivadoEvent)
   maps/         MapsProvider, Google e plano B por proximidade
 backend/src/test/java/br/com/smartvan/
@@ -42,7 +42,7 @@ backend/src/test/java/br/com/smartvan/
 - Injeção de dependência por construtor. `@Valid` nos corpos das requisições.
 - `BigDecimal` para dinheiro. Data de hoje sempre com `LocalDate.now(clock)` (bean `Clock`, fuso `America/Sao_Paulo`).
 - Erros de regra: `RegraNegocioException` com os códigos do contrato.
-- Usuário atual: `UsuarioLogado.atual()`. Papel nas rotas: `@PreAuthorize("hasRole('MOTORISTA')")` etc.
+- Usuário atual: `UsuarioLogado.atual()`. Papel nas rotas: `@Papel(TipoUsuario.MOTORISTA)` etc.
 - Agendadores: `@Scheduled(cron = "${smartvan.agendador.<x>.cron}", zone = "America/Sao_Paulo")` chamando um
   método público do service (os testes chamam o método direto; o agendador fica desligado nos testes).
 - Nunca chamar o Google nos testes.

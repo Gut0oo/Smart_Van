@@ -6,6 +6,7 @@ import br.com.smartvan.model.Notificacao;
 import br.com.smartvan.model.Usuario;
 import br.com.smartvan.repository.AuditoriaRepository;
 import br.com.smartvan.repository.NotificacaoRepository;
+import br.com.smartvan.security.InterceptorUsuarioLogado;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
@@ -29,8 +31,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * MapsProvider falso ({@link FakeMapsProvider}). Antes de cada teste: limpa todas as tabelas, reinicia o
  * relógio e o FakeMapsProvider.
  *
- * Etapa 1: ainda não há login, então os atalhos de MockMvc não mandam token. A etapa 2 acrescenta
- * a autenticação (ex.: {@code autenticar(req, usuario)} com o helper de sessão).
+ * Os atalhos de MockMvc existem sem identificação e, recebendo um {@link Usuario}, com o header X-Usuario-Id dele.
+ * Para outros casos: {@code mvc.perform(autenticar(get(url), usuario))}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -69,7 +71,7 @@ public abstract class TesteIntegracaoBase {
         }
     }
 
-    // ---------------------------------------------------------------- atalhos de MockMvc (sem token)
+    // ---------------------------------------------------------------- atalhos de MockMvc (sem identificação)
 
     protected ResultActions fazGet(String url) throws Exception {
         return mvc.perform(get(url));
@@ -90,6 +92,36 @@ public abstract class TesteIntegracaoBase {
 
     protected ResultActions fazDelete(String url) throws Exception {
         return mvc.perform(delete(url));
+    }
+
+    // ---------------------------------------------------------------- atalhos de MockMvc (com X-Usuario-Id)
+
+    /** Põe o header X-Usuario-Id do usuário na requisição. */
+    protected MockHttpServletRequestBuilder autenticar(MockHttpServletRequestBuilder req, Usuario usuario) {
+        return req.header(InterceptorUsuarioLogado.HEADER, usuario.getId());
+    }
+
+    protected ResultActions fazGet(String url, Usuario usuario) throws Exception {
+        return mvc.perform(autenticar(get(url), usuario));
+    }
+
+    protected ResultActions fazPost(String url, Object corpo, Usuario usuario) throws Exception {
+        return mvc.perform(autenticar(post(url), usuario)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo)));
+    }
+
+    /** POST sem corpo (ex.: aceitar/recusar). */
+    protected ResultActions fazPostSemCorpo(String url, Usuario usuario) throws Exception {
+        return mvc.perform(autenticar(post(url), usuario));
+    }
+
+    protected ResultActions fazPut(String url, Object corpo, Usuario usuario) throws Exception {
+        return mvc.perform(autenticar(put(url), usuario)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo)));
+    }
+
+    protected ResultActions fazDelete(String url, Usuario usuario) throws Exception {
+        return mvc.perform(autenticar(delete(url), usuario));
     }
 
     // ---------------------------------------------------------------- verificação de efeitos

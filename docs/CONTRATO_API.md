@@ -7,10 +7,12 @@
 
 - Base: `http://localhost:8080` (sem context path). JSON em UTF-8. Datas `YYYY-MM-DD`, horários `HH:mm`, timestamps ISO-8601 UTC.
 - Fuso de negócio: `America/Sao_Paulo` (bean `Clock`). "Hoje" = `LocalDate.now(clock)`.
-- Autenticação por **token de sessão**: o login devolve um token aleatório (UUID) salvo no banco; o app envia
-  `Authorization: Bearer <token>` em cada requisição. Rotas públicas: `POST /usuarios` (cadastro), `POST /auth/login`,
-  `GET /escolas`, `GET /actuator/health`.
-- Papéis: `RESPONSAVEL`, `MOTORISTA`, `ADMINISTRADOR` (tipo do usuário → authority `ROLE_<tipo>`). Rota de outro papel → 403.
+- Identificação pelo header **`X-Usuario-Id`**: o login confere e-mail e senha e devolve o usuário; o app guarda o `id`
+  e o envia nesse header em cada requisição. Toda rota exige o header, exceto as públicas:
+  `POST /usuarios` (cadastro), `POST /auth/login`, `GET /escolas`, `GET /actuator/health`.
+- **Atenção: o header não prova a identidade de quem chama.** Quem enviar o id de outra pessoa é tratado como ela.
+  Este mecanismo é **só para uso acadêmico e não serve para produção**. As próximas etapas seguem este padrão.
+- Papéis: `RESPONSAVEL`, `MOTORISTA`, `ADMINISTRADOR` (tipo do usuário). Rota de outro papel → 403.
 - Dinheiro: número decimal com 2 casas (`350.00`).
 - Listas não são paginadas (volume acadêmico).
 
@@ -24,8 +26,8 @@
 | HTTP | Quando | `codigo` |
 |---|---|---|
 | 400 | Bean Validation (`campos` preenchido) | `VALIDACAO` |
-| 401 | Sem token / token inválido ou expirado / login errado | `NAO_AUTENTICADO`, `CREDENCIAIS_INVALIDAS` |
-| 403 | Papel errado ou recurso de outra pessoa | `SEM_PERMISSAO` |
+| 401 | Header `X-Usuario-Id` ausente, inválido ou de usuário inexistente / login errado | `NAO_AUTENTICADO`, `CREDENCIAIS_INVALIDAS` |
+| 403 | Papel errado ou recurso de outra pessoa / conta bloqueada | `SEM_PERMISSAO`, `CONTA_BLOQUEADA` |
 | 404 | Id inexistente | `NAO_ENCONTRADO` |
 | 409 | Conflito de estado / duplicidade | ver cada endpoint |
 | 422 | Regra de negócio não atendida | ver cada endpoint |
@@ -53,8 +55,7 @@ UsuarioResumo { id, nome, telefone }
 | Método | Rota | Papel | Corpo → Resposta |
 |---|---|---|---|
 | POST | `/usuarios` | público | cadastro **original do projeto, sem mudança** (`UsuarioController`) → **201** |
-| POST | `/auth/login` | público | `{ email, senha }` → `{ token, expiraEm, usuario: Usuario }` |
-| POST | `/auth/logout` | logado | → **204** (apaga a sessão do token enviado) |
+| POST | `/auth/login` | público | `{ email, senha }` → `{ usuario: Usuario }` |
 | GET | `/auth/me` | logado | → `Usuario` |
 | GET | `/escolas?cidade=&nome=` | público | → `Escola[]` (filtros `contains`, sem acento/caixa não precisa) |
 | POST | `/responsavel/alunos` | RESPONSAVEL | `{ nome, dataNascimento, serie?, escolaId, parentesco, endereco: Endereco }` → **201** `Aluno` |
@@ -79,8 +80,9 @@ Regras:
 - Aluno: grava `alunos`, `alunos_enderecos` (tipo `RESIDENCIAL`, principal) e `responsaveis_alunos` (`status_vinculo ATIVO`, `acompanha_rota true`).
 - Login: senha conferida com o `PasswordEncoder` (BCrypt) que o projeto já usa. E-mail ou senha errados → **401**
   `CREDENCIAIS_INVALIDAS` (mesma mensagem para os dois). Conta `BLOQUEADA` → **403** `CONTA_BLOQUEADA`. `PENDENTE` e `ATIVA` entram.
-- Sessão: token = UUID aleatório, gravado na tabela `sessoes` (usuário, token, criada em, expira em), validade de **8 h**
-  (`smartvan.sessao.horas`). Token expirado ou inexistente → **401** `NAO_AUTENTICADO`. Login atualiza `ultimo_acesso`.
+  Login atualiza `ultimo_acesso`.
+- Rotas "logado" e com papel: `X-Usuario-Id` ausente, inválido ou de usuário inexistente → **401** `NAO_AUTENTICADO`.
+  Conta `BLOQUEADA` → **403** `CONTA_BLOQUEADA`. Papel errado → **403** `SEM_PERMISSAO`. Não há logout: o app só esquece o id.
 
 ---
 

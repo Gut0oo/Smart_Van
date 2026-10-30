@@ -21,13 +21,6 @@ import java.util.Map;
 @RestControllerAdvice
 public class TratadorGlobalDeErros {
 
-    /*
-     * O Spring Security ainda não está no classpath principal (entra na etapa 2). Por isso o acesso negado
-     * (AccessDeniedException e a subclasse AuthorizationDeniedException, lançada pelo @PreAuthorize) é
-     * reconhecido pelo nome da classe. Na etapa 2 dá para trocar por um @ExceptionHandler tipado.
-     */
-    private static final String ACESSO_NEGADO = "org.springframework.security.access.AccessDeniedException";
-
     private final Clock clock;
 
     public TratadorGlobalDeErros(Clock clock) {
@@ -57,9 +50,6 @@ public class TratadorGlobalDeErros {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErroResponseDTO> outras(Exception e) {
-        if (ehAcessoNegado(e)) {
-            return erro(HttpStatus.FORBIDDEN, "SEM_PERMISSAO", "Você não tem permissão para esta ação.");
-        }
         // Exceções do próprio Spring MVC que já têm status (rota inexistente, método não suportado,
         // parâmetro obrigatório ausente...): mantém o status em vez de virar 500.
         if (e instanceof ErrorResponse respostaSpring) {
@@ -78,14 +68,5 @@ public class TratadorGlobalDeErros {
     private ResponseEntity<ErroResponseDTO> erro(HttpStatusCode status, String codigo, String mensagem) {
         return ResponseEntity.status(status)
                 .body(ErroResponseDTO.de(status.value(), codigo, mensagem, clock.instant()));
-    }
-
-    private static boolean ehAcessoNegado(Throwable e) {
-        for (Class<?> c = e.getClass(); c != null; c = c.getSuperclass()) {
-            if (ACESSO_NEGADO.equals(c.getName())) {
-                return true;
-            }
-        }
-        return false;
     }
 }

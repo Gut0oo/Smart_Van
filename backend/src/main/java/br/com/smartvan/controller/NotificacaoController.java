@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-//seção 6 do contrato; a proteção "logado"/"dono" entra na etapa 2 (login)
+//seção 6 do contrato; "logado" vem do InterceptorUsuarioLogado e "dono" é conferido no NotificacaoService
 @RestController
 @RequestMapping("/notificacoes")
 public class NotificacaoController {

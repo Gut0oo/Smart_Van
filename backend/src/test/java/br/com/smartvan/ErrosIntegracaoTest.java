@@ -1,23 +1,21 @@
 package br.com.smartvan;
 
 import br.com.smartvan.exception.RegraNegocioException;
+import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.suporte.TesteIntegracaoBase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,17 +23,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * TratadorGlobalDeErros: o JSON de erro da seção "Erros" do contrato.
  *
- * O spring-boot-starter-security-test do pom já põe o Spring Security no classpath de TESTE (com a configuração
- * padrão: tudo exige login e POST exige CSRF). Por isso o teste usa @WithMockUser e csrf(); os dois continuam
- * válidos depois que a etapa 2 ligar a segurança de verdade.
+ * As rotas de teste são protegidas como qualquer outra, por isso as requisições levam o header X-Usuario-Id.
  */
-@WithMockUser
 @Import(ErrosIntegracaoTest.ControllerDeTeste.class)
 class ErrosIntegracaoTest extends TesteIntegracaoBase {
 
+    private Responsavel usuario;
+
+    @BeforeEach
+    void criarUsuario() {
+        usuario = fabrica.responsavel();
+    }
+
     @Test
     void regraNegocioViraJsonComStatusCodigoMensagemETimestamp() throws Exception {
-        mvc.perform(get("/teste-erros/regra"))
+        fazGet("/teste-erros/regra", usuario)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.codigo").value("SEM_VAGAS"))
@@ -46,7 +48,7 @@ class ErrosIntegracaoTest extends TesteIntegracaoBase {
 
     @Test
     void regraNaoAtendidaUsa422() throws Exception {
-        mvc.perform(get("/teste-erros/regra-422"))
+        fazGet("/teste-erros/regra-422", usuario)
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422))
                 .andExpect(jsonPath("$.codigo").value("CODIGO_DA_REGRA"));
@@ -54,7 +56,7 @@ class ErrosIntegracaoTest extends TesteIntegracaoBase {
 
     @Test
     void beanValidationDa400ValidacaoComCampos() throws Exception {
-        mvc.perform(post("/teste-erros/validacao").with(csrf())
+        mvc.perform(autenticar(post("/teste-erros/validacao"), usuario)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nome\":\"\",\"email\":\"invalido\"}"))
                 .andExpect(status().isBadRequest())
@@ -67,7 +69,7 @@ class ErrosIntegracaoTest extends TesteIntegracaoBase {
 
     @Test
     void corpoMalFormadoDa400Validacao() throws Exception {
-        mvc.perform(post("/teste-erros/validacao").with(csrf())
+        mvc.perform(autenticar(post("/teste-erros/validacao"), usuario)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{nao é json"))
                 .andExpect(status().isBadRequest())
@@ -75,8 +77,8 @@ class ErrosIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void acessoNegadoDa403SemPermissao() throws Exception {
-        mvc.perform(get("/teste-erros/acesso-negado"))
+    void semPermissaoDa403() throws Exception {
+        fazGet("/teste-erros/sem-permissao", usuario)
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.codigo").value("SEM_PERMISSAO"));
@@ -84,14 +86,14 @@ class ErrosIntegracaoTest extends TesteIntegracaoBase {
 
     @Test
     void rotaInexistenteDa404NaoEncontrado() throws Exception {
-        mvc.perform(get("/rota-que-nao-existe"))
+        fazGet("/rota-que-nao-existe", usuario)
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.codigo").value("NAO_ENCONTRADO"));
     }
 
     @Test
     void erroInesperadoDa500SemExporDetalhes() throws Exception {
-        mvc.perform(get("/teste-erros/inesperado"))
+        fazGet("/teste-erros/inesperado", usuario)
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.codigo").value("ERRO_INTERNO"))
                 .andExpect(jsonPath("$.mensagem").value("Erro inesperado. Tente novamente."));
@@ -120,9 +122,9 @@ class ErrosIntegracaoTest extends TesteIntegracaoBase {
         public void validacao(@Valid @RequestBody CorpoDeTeste corpo) {
         }
 
-        @GetMapping("/acesso-negado")
-        public void acessoNegado() {
-            throw new AccessDeniedException("negado");
+        @GetMapping("/sem-permissao")
+        public void semPermissao() {
+            throw RegraNegocioException.semPermissao();
         }
 
         @GetMapping("/inesperado")
