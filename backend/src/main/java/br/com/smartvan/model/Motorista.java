@@ -5,9 +5,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.HashSet;
-import java.util.Set;
-
 @Getter
 @Setter
 
@@ -24,13 +21,4 @@ public class Motorista extends Usuario{
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "endereco_partida_id")
     private Endereco enderecoPartida;
-
-    //escolas atendidas pelo motorista (usado na busca por escola)
-    @ManyToMany
-    @JoinTable(
-            name = "motoristas_escolas",
-            joinColumns = @JoinColumn(name = "motorista_id"),
-            inverseJoinColumns = @JoinColumn(name = "escola_id")
-    )
-    private Set<Escola> escolasAtendidas = new HashSet<>();
 }

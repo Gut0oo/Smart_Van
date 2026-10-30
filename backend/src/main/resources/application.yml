@@ -15,3 +15,5 @@ spring:
 smartvan:
   agendador:
     habilitado: true   # liga os @Scheduled (AgendadorConfig); nos testes fica false
+  rota:
+    margem-chegada-minutos: 15   # teto de chegada à escola = início da aula - margem

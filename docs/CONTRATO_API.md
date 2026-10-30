@@ -62,8 +62,8 @@ UsuarioResumo { id, nome, telefone }
 | GET | `/responsavel/alunos` | RESPONSAVEL | → `Aluno[]` |
 | POST | `/motorista/veiculos` | MOTORISTA | `{ placa, modelo, ano, capacidade (1..60), tipo }` → **201** `Veiculo` |
 | GET | `/motorista/veiculos` | MOTORISTA | → `Veiculo[]` |
-| PUT | `/motorista/escolas` | MOTORISTA | `{ escolaIds: number[] }` → `EscolaResumo[]` |
-| GET | `/motorista/escolas` | MOTORISTA | → `Escola[]` |
+| PUT | `/motorista/escolas` | MOTORISTA | `{ atendimentos: { escolaId, horarioInicioAula, horarioSaidaMotorista }[] }` → `Atendimento[]` |
+| GET | `/motorista/escolas` | MOTORISTA | → `Atendimento[]` |
 | PUT | `/motorista/endereco-partida` | MOTORISTA | `Endereco` → `EnderecoResp` |
 | GET | `/motorista/perfil` | MOTORISTA | → `{ usuario: Usuario, enderecoPartida?: EnderecoResp, veiculos: Veiculo[], escolas: EscolaResumo[] }` |
 
@@ -71,6 +71,7 @@ UsuarioResumo { id, nome, telefone }
 Usuario { id, nome, email, cpf, telefone, tipo, status, statusValidacao?: PENDENTE|EM_ANALISE|VALIDADO|REJEITADO }
 Aluno   { id, nome, dataNascimento, serie?, parentesco, escola: EscolaResumo, endereco: EnderecoResp }
 Veiculo { id, placa, modelo, ano, capacidade, tipo: VAN|MICRO_ONIBUS|CARRO }
+Atendimento { id, escola: Escola, horarioInicioAula, horarioSaidaMotorista, tetoChegada }
 ```
 
 Regras:
@@ -78,6 +79,11 @@ Regras:
   A validação do motorista por administrador está fora do escopo desta entrega.
 - Placa duplicada → **409** `PLACA_JA_CADASTRADA`.
 - Aluno: grava `alunos`, `alunos_enderecos` (tipo `RESIDENCIAL`, principal) e `responsaveis_alunos` (`status_vinculo ATIVO`, `acompanha_rota true`).
+- Atendimento: motorista + escola + horário de início da aula + horário de saída do motorista. Um motorista pode ter
+  vários por escola. O `PUT /motorista/escolas` substitui a lista inteira (lista vazia remove todos; itens idênticos contam
+  uma vez; escola inexistente → **404** `NAO_ENCONTRADO`).
+- `tetoChegada` = `horarioInicioAula` − `smartvan.rota.margem-chegada-minutos` (padrão 15).
+- `escolas` do perfil do motorista = escolas dos atendimentos, cada uma uma vez.
 - Login: senha conferida com o `PasswordEncoder` (BCrypt) que o projeto já usa. E-mail ou senha errados → **401**
   `CREDENCIAIS_INVALIDAS` (mesma mensagem para os dois). Conta `BLOQUEADA` → **403** `CONTA_BLOQUEADA`. `PENDENTE` e `ATIVA` entram.
   Login atualiza `ultimo_acesso`.
