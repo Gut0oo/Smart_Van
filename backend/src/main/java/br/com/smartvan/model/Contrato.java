@@ -34,6 +34,11 @@ public class Contrato {
     @JoinColumn(name = "aluno_id", nullable = false)
     private Aluno aluno;
 
+    //turno contratado; fica nulo só em contrato RECUSADO ou ENCERRADO cujo atendimento o motorista removeu
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "atendimento_id")
+    private Atendimento atendimento;
+
     @Column(name = "valor_mensal", precision = 10, scale = 2, nullable = false)
     private BigDecimal valorMensal;
 

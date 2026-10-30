@@ -1,5 +1,6 @@
 package br.com.smartvan.repository;
 
+import br.com.smartvan.enums.StatusVinculo;
 import br.com.smartvan.model.ResponsavelAluno;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,4 +17,9 @@ public interface ResponsavelAlunoRepository
             + "where ra.responsavel.id = :responsavelId "
             + "and ra.statusVinculo = br.com.smartvan.enums.StatusVinculo.ATIVO order by a.nome, a.id")
     List<ResponsavelAluno> ativosDoResponsavel(@Param("responsavelId") Long responsavelId);
+
+    boolean existsByResponsavelIdAndStatusVinculo(Long responsavelId, StatusVinculo statusVinculo);
+
+    boolean existsByResponsavelIdAndAlunoIdAndStatusVinculo(Long responsavelId, Long alunoId,
+                                                            StatusVinculo statusVinculo);
 }

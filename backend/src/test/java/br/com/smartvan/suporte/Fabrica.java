@@ -2,6 +2,7 @@ package br.com.smartvan.suporte;
 
 import br.com.smartvan.enums.Parentesco;
 import br.com.smartvan.enums.StatusConta;
+import br.com.smartvan.enums.StatusContrato;
 import br.com.smartvan.enums.StatusMotorista;
 import br.com.smartvan.enums.StatusVinculo;
 import br.com.smartvan.enums.TipoEndereco;
@@ -11,6 +12,7 @@ import br.com.smartvan.model.Administrador;
 import br.com.smartvan.model.Aluno;
 import br.com.smartvan.model.AlunoEndereco;
 import br.com.smartvan.model.Atendimento;
+import br.com.smartvan.model.Contrato;
 import br.com.smartvan.model.Endereco;
 import br.com.smartvan.model.Escola;
 import br.com.smartvan.model.Motorista;
@@ -21,6 +23,7 @@ import br.com.smartvan.model.Veiculo;
 import br.com.smartvan.repository.AlunoEnderecoRepository;
 import br.com.smartvan.repository.AlunoRepository;
 import br.com.smartvan.repository.AtendimentoRepository;
+import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.EnderecoRepository;
 import br.com.smartvan.repository.EscolaRepository;
 import br.com.smartvan.repository.MotoristaRepository;
@@ -62,13 +65,15 @@ public class Fabrica {
     private final MotoristaRepository motoristas;
     private final VeiculoRepository veiculos;
     private final AtendimentoRepository atendimentos;
+    private final ContratoRepository contratos;
 
     private String hashSenha;
 
     public Fabrica(UsuarioRepository usuarios, PasswordEncoder encoder, EnderecoRepository enderecos,
                    EscolaRepository escolas, AlunoRepository alunos, AlunoEnderecoRepository alunosEnderecos,
                    ResponsavelAlunoRepository vinculos, ResponsavelRepository responsaveis,
-                   MotoristaRepository motoristas, VeiculoRepository veiculos, AtendimentoRepository atendimentos) {
+                   MotoristaRepository motoristas, VeiculoRepository veiculos, AtendimentoRepository atendimentos,
+                   ContratoRepository contratos) {
         this.usuarios = usuarios;
         this.encoder = encoder;
         this.enderecos = enderecos;
@@ -80,6 +85,7 @@ public class Fabrica {
         this.motoristas = motoristas;
         this.veiculos = veiculos;
         this.atendimentos = atendimentos;
+        this.contratos = contratos;
     }
 
     private long proximo() {
@@ -241,6 +247,21 @@ public class Fabrica {
         for (Escola escola : escolasAtendidas) {
             atendimento(motorista, escola, LocalTime.of(7, 0), LocalTime.of(6, 0));
         }
+    }
+
+    // ---------------------------------------------------------------- contrato
+
+    /** Contrato direto no banco, com a mensalidade de 350,00 e início em 2026-11-03. */
+    public Contrato contrato(Responsavel responsavel, Aluno aluno, Atendimento atendimento, StatusContrato status) {
+        Contrato c = new Contrato();
+        c.setResponsavel(responsavel);
+        c.setMotorista(atendimento.getMotorista());
+        c.setAluno(aluno);
+        c.setAtendimento(atendimento);
+        c.setValorMensal(new BigDecimal("350.00"));
+        c.setDataInicio(LocalDate.of(2026, 11, 3));
+        c.setStatus(status);
+        return contratos.save(c);
     }
 
     /** Define o endereço de partida do motorista (com coordenadas). Devolve o endereço. */

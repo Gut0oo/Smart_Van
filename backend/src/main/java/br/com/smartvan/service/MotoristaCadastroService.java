@@ -9,6 +9,7 @@ import br.com.smartvan.dto.PerfilMotoristaResponseDTO;
 import br.com.smartvan.dto.UsuarioDetalheResponseDTO;
 import br.com.smartvan.dto.VeiculoRequestDTO;
 import br.com.smartvan.dto.VeiculoResponseDTO;
+import br.com.smartvan.enums.StatusContrato;
 import br.com.smartvan.exception.RegraNegocioException;
 import br.com.smartvan.model.Atendimento;
 import br.com.smartvan.model.Endereco;
@@ -16,6 +17,7 @@ import br.com.smartvan.model.Escola;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Veiculo;
 import br.com.smartvan.repository.AtendimentoRepository;
+import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.EscolaRepository;
 import br.com.smartvan.repository.MotoristaRepository;
 import br.com.smartvan.repository.VeiculoRepository;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,17 +41,19 @@ public class MotoristaCadastroService {
     private final VeiculoRepository veiculos;
     private final EscolaRepository escolas;
     private final AtendimentoRepository atendimentos;
+    private final ContratoRepository contratos;
     private final EnderecoService enderecoService;
     private final int margemChegadaMinutos;
 
     public MotoristaCadastroService(MotoristaRepository motoristas, VeiculoRepository veiculos,
                                     EscolaRepository escolas, AtendimentoRepository atendimentos,
-                                    EnderecoService enderecoService,
+                                    ContratoRepository contratos, EnderecoService enderecoService,
                                     @Value("${smartvan.rota.margem-chegada-minutos:15}") int margemChegadaMinutos) {
         this.motoristas = motoristas;
         this.veiculos = veiculos;
         this.escolas = escolas;
         this.atendimentos = atendimentos;
+        this.contratos = contratos;
         this.enderecoService = enderecoService;
         this.margemChegadaMinutos = margemChegadaMinutos;
     }
@@ -73,7 +78,8 @@ public class MotoristaCadastroService {
         return veiculos.findByMotoristaIdOrderByIdAsc(motoristaId).stream().map(VeiculoResponseDTO::de).toList();
     }
 
-    //a lista recebida substitui todos os atendimentos do motorista; itens idênticos contam uma vez
+    //a lista recebida substitui todos os atendimentos do motorista; itens idênticos contam uma vez.
+    //o que já existe e continua na lista fica com o mesmo id, porque os contratos apontam para ele
     @Transactional
     public List<AtendimentoResponseDTO> definirAtendimentos(Long motoristaId, List<AtendimentoRequestDTO> novos) {
         Motorista m = motorista(motoristaId);
@@ -84,8 +90,14 @@ public class MotoristaCadastroService {
             throw RegraNegocioException.naoEncontrado("Escola");
         }
 
-        atendimentos.deleteByMotoristaId(motoristaId);
-        atendimentos.saveAll(novos.stream().distinct().map(req -> {
+        Set<AtendimentoRequestDTO> aCriar = new LinkedHashSet<>(novos);
+        List<Atendimento> aRemover = atendimentos.travarDoMotorista(motoristaId).stream()
+                .filter(a -> !aCriar.remove(new AtendimentoRequestDTO(a.getEscola().getId(),
+                        a.getHorarioInicioAula(), a.getHorarioSaidaMotorista())))
+                .toList();
+        remover(aRemover);
+
+        atendimentos.saveAll(aCriar.stream().map(req -> {
             Atendimento a = new Atendimento();
             a.setMotorista(m);
             a.setEscola(encontradas.get(req.escolaId()));
@@ -94,6 +106,20 @@ public class MotoristaCadastroService {
             return a;
         }).toList());
         return listarAtendimentos(motoristaId);
+    }
+
+    //turno com proposta ou contrato em andamento não sai; contrato já terminado continua, sem o turno
+    private void remover(List<Atendimento> aRemover) {
+        if (aRemover.isEmpty()) {
+            return;
+        }
+        List<Long> ids = aRemover.stream().map(Atendimento::getId).toList();
+        if (contratos.existsByAtendimentoIdInAndStatusIn(ids, List.of(StatusContrato.PENDENTE, StatusContrato.ATIVO))) {
+            throw RegraNegocioException.conflito("ATENDIMENTO_COM_CONTRATO",
+                    "Não é possível remover um atendimento com proposta pendente ou contrato ativo.");
+        }
+        contratos.desvincularAtendimentos(ids);
+        atendimentos.deleteAll(aRemover);
     }
 
     @Transactional(readOnly = true)

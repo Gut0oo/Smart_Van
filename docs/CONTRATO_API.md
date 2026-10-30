@@ -96,31 +96,55 @@ Regras:
 
 | Método | Rota | Papel | Corpo → Resposta |
 |---|---|---|---|
-| GET | `/motoristas?escolaId=&cidade=&nome=` | RESPONSAVEL | → `MotoristaBusca[]` |
-| GET | `/motoristas/{id}` | RESPONSAVEL | → `MotoristaBusca` (perfil T08) |
-| POST | `/contratos` | RESPONSAVEL | `{ motoristaId, alunoId, valorMensal }` → **201** `Contrato` (status `PENDENTE`) |
+| GET | `/motoristas?escolaId=&horarioAula=&cidade=&nome=` | RESPONSAVEL | → `MotoristaBusca[]` |
+| GET | `/motoristas/{id}` | RESPONSAVEL | → `MotoristaPerfil` (perfil T08) |
+| POST | `/contratos` | RESPONSAVEL | `{ atendimentoId, alunoId, valorMensal }` → **201** `Contrato` (status `PENDENTE`) |
 | GET | `/contratos?status=` | logado | → `Contrato[]` do usuário (como responsável ou motorista), mais recentes primeiro |
 | GET | `/contratos/{id}` | parte | → `Contrato` |
 | POST | `/contratos/{id}/aceitar` | MOTORISTA dono | → `Contrato` |
 | POST | `/contratos/{id}/recusar` | MOTORISTA dono | → `Contrato` |
 
 ```ts
-MotoristaBusca { id, nome, telefone, veiculo?: { modelo, tipo, capacidade }, escolas: EscolaResumo[],
-                 cidades: string[], vagasRestantes }
+VeiculoResumo   { modelo, tipo, capacidade }
+MotoristaBusca  { id, nome, telefone, veiculo?: VeiculoResumo,
+                  atendimentos: { id, escola: EscolaResumo, cidade, horarioInicioAula, horarioSaidaMotorista,
+                                  vagasRestantes }[] }
+MotoristaPerfil { id, nome, telefone, veiculo?: VeiculoResumo, totalClientes,
+                  atendimentos: { id, escola: EscolaResumo, cidade, horarioInicioAula, horarioSaidaMotorista,
+                                  contratosAtivos, capacidade, vagasRestantes }[] }
 Contrato { id, status, valorMensal, dataInicio, aluno: AlunoResumo, responsavel: UsuarioResumo,
            motorista: UsuarioResumo, escola?: EscolaResumo,
+           atendimento?: { id, horarioInicioAula, horarioSaidaMotorista },
            cancelamento?: { dataSolicitacao, dataEncerramentoEfetivo, solicitante, motivo } }
 ```
 
 Regras (seção 5 do contexto):
-- Busca exige ≥1 aluno do responsável → senão **422** `ALUNO_OBRIGATORIO`.
+- **Vagas por atendimento:** `vagasRestantes = capacidade − contratos ATIVO daquele atendimento`. Capacidade = **maior** capacidade entre os veículos do motorista (0 se não tem veículo). `veiculo` = esse veículo. Proposta `PENDENTE` não ocupa vaga.
+- Busca e perfil exigem ≥1 aluno do responsável → senão **422** `ALUNO_OBRIGATORIO`.
+
+Busca:
+- `escolaId` é obrigatório (**400** `VALIDACAO` se faltar). `horarioAula` (`HH:mm`), `cidade` e `nome` são opcionais e combinam com AND.
+- `horarioAula` combina com o atendimento cujo início da aula esteja a até 30 minutos, para mais ou para menos. A janela não atravessa a meia-noite.
+- `cidade` é a da escola do atendimento; `cidade` e `nome` do motorista usam contains, case-insensitive.
 - Só motoristas `statusValidacao = VALIDADO` (condição na consulta, não filtro em memória).
-- Filtros: `escolaId` (atende a escola), `cidade` (cidade de alguma escola atendida), `nome` (contains, case-insensitive). Combinados com AND.
-- `vagasRestantes = capacidade − contratos ATIVO do motorista`. Capacidade = **maior** capacidade entre os veículos do motorista (0 se não tem veículo). `veiculo` = esse veículo.
-- Proposta: aluno precisa pertencer ao responsável (**403** `SEM_PERMISSAO`); motorista `VALIDADO` (**422** `MOTORISTA_NAO_VALIDADO`); vaga (**409** `SEM_VAGAS`); sem `PENDENTE` igual aluno+motorista (**409** `PROPOSTA_DUPLICADA`); aluno sem contrato `ATIVO` com qualquer motorista (**409** `ALUNO_JA_TEM_CONTRATO`). `dataInicio` = hoje na proposta.
-- Aceitar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`); rechecar vaga (**409** `SEM_VAGAS`) → `ATIVO`, `dataInicio = hoje`, notifica responsável, publica `ContratoAtivadoEvent`.
-- Recusar: precisa estar `PENDENTE` → `RECUSADO`, notifica responsável.
+- Devolve os atendimentos que combinam, com as vagas de cada um. Atendimento sem vaga não aparece, e motorista sem nenhum atendimento na lista também não.
+
+Perfil:
+- Motorista inexistente ou não `VALIDADO` → **404** `NAO_ENCONTRADO`.
+- Abre mesmo com atendimento lotado (`vagasRestantes: 0`) e lista todos os atendimentos, com a lotação só em números, sem nomes.
+- `totalClientes` = responsáveis distintos que já tiveram contrato `ATIVO` ou `ENCERRADO` com o motorista. Proposta `PENDENTE` ou `RECUSADO` não conta, e uma família com dois filhos conta como 1.
+
+Contrato:
+- Proposta: aluno e atendimento existem (**404** `NAO_ENCONTRADO`); aluno precisa pertencer ao responsável (**403** `SEM_PERMISSAO`); aluno estuda na escola do atendimento (**422** `ALUNO_DE_OUTRA_ESCOLA`); motorista `VALIDADO` (**422** `MOTORISTA_NAO_VALIDADO`); vaga no atendimento (**409** `SEM_VAGAS`); sem `PENDENTE` igual aluno+motorista, em qualquer atendimento dele (**409** `PROPOSTA_DUPLICADA`); aluno sem contrato `ATIVO` com qualquer motorista (**409** `ALUNO_JA_TEM_CONTRATO`). `dataInicio` = hoje na proposta.
+- Aceitar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`); rechecar vaga no atendimento (**409** `SEM_VAGAS`); aluno sem contrato `ATIVO`, porque pode ter propostas com vários motoristas (**409** `ALUNO_JA_TEM_CONTRATO`) → `ATIVO`, `dataInicio = hoje`, notifica responsável, publica `ContratoAtivadoEvent`.
+- Recusar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`) → `RECUSADO`, notifica responsável.
 - Criar proposta notifica o motorista.
+- Proposta e aceite travam a linha do atendimento antes de contar as vagas (lock pessimista), para aceites simultâneos não passarem do limite.
+
+Efeito no `PUT /motorista/escolas` (seção 1), porque os contratos apontam para o atendimento:
+- Item igual a um atendimento existente (mesma escola e horários) mantém o `id`.
+- Remover atendimento com proposta `PENDENTE` ou contrato `ATIVO` → **409** `ATENDIMENTO_COM_CONTRATO`, sem alterar nada.
+- Remover atendimento só com contratos `RECUSADO` ou `ENCERRADO` é permitido: eles continuam, com `atendimento` nulo e `escola` igual à do aluno.
 
 ---
 
