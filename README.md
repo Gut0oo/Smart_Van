@@ -27,5 +27,5 @@ Para os pais, a plataforma facilita a busca por um transporte escolar confiável
 | ***Marcus Ruiz Nishimura Baena*** | ***10426044***| 
 |***Gustavo Melo Silva*** |***10438415***|
 |***Luiz Alberto Silva Mota*** |***10436776***|
-|***Arthur Rodrigues Lourenço Soares*** |***10434424***|
+|***Arthur Rodrigues Soares Lourenço*** |***10434424***|
 
