@@ -32,6 +32,11 @@ public class Rota {
     @JoinColumn(name = "veiculo_id", nullable = false)
     private Veiculo veiculo;
 
+    //uma rota por escola: na ida e o destino, na volta e o ponto de saida
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "escola_id", nullable = false)
+    private Escola escola;
+
     @Column(name = "data_rota", nullable = false)
     private LocalDate dataRota;
 
@@ -54,9 +59,13 @@ public class Rota {
     @Column(name = "distancia_km", precision = 10, scale = 2)
     private BigDecimal distanciaKm;
 
-    //false quando o serviço de mapas falhou e a ordem é a do ultimo calculo
+    //false quando o Google falhou e a ordem foi calculada por proximidade
     @Column(name = "otimizada", nullable = false)
     private boolean otimizada;
+
+    //tracado da rota devolvido pelo Google (formato "encoded polyline"); nulo quando nao otimizada
+    @Column(name = "polyline", columnDefinition = "text")
+    private String polyline;
 
     //a rota é dona das paradas: salvar/remover a rota salva/remove as paradas
     @OneToMany(mappedBy = "rota", cascade = CascadeType.ALL, orphanRemoval = true)

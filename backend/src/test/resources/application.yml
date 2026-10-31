@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:smartvan;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:smartvan;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -8,3 +8,7 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: create-drop
+
+smartvan:
+  agendador:
+    habilitado: false  # os testes chamam os jobs direto
