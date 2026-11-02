@@ -58,6 +58,7 @@ UsuarioResumo { id, nome, telefone }
 | POST | `/auth/login` | público | `{ email, senha }` → `{ usuario: Usuario }` |
 | GET | `/auth/me` | logado | → `Usuario` |
 | GET | `/escolas?cidade=&nome=` | público | → `Escola[]` (filtros `contains`, sem acento/caixa não precisa) |
+| POST | `/escolas` | ADMINISTRADOR | `{ nome, telefone?, endereco: Endereco }` → **201** `Escola` |
 | POST | `/responsavel/alunos` | RESPONSAVEL | `{ nome, dataNascimento, serie?, escolaId, parentesco, endereco: Endereco }` → **201** `Aluno` |
 | GET | `/responsavel/alunos` | RESPONSAVEL | → `Aluno[]` |
 | POST | `/motorista/veiculos` | MOTORISTA | `{ placa, modelo, ano, capacidade (1..60), tipo }` → **201** `Veiculo` |

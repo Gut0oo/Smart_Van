@@ -67,6 +67,52 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
     // ---------------------------------------------------------------- escolas
 
     @Test
+    void administradorCadastraEscolaQueApareceNaListaPublica() throws Exception {
+        Map<String, Object> corpo = Map.of("nome", " Colégio Novo ", "telefone", "1133334444",
+                "endereco", endereco(true));
+
+        fazPost("/escolas", corpo, fabrica.administrador())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.nome").value("Colégio Novo"))
+                .andExpect(jsonPath("$.telefone").value("1133334444"))
+                .andExpect(jsonPath("$.endereco.cidade").value("São Paulo"));
+
+        fazGet("/escolas?nome=novo").andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void telefoneDaEscolaEOpcional() throws Exception {
+        fazPost("/escolas", Map.of("nome", "Colégio Novo", "endereco", endereco(true)), fabrica.administrador())
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void cadastroDeEscolaEDoAdministrador() throws Exception {
+        Map<String, Object> corpo = Map.of("nome", "Colégio Novo", "endereco", endereco(true));
+
+        fazPost("/escolas", corpo).andExpect(status().isUnauthorized());
+        fazPost("/escolas", corpo, fabrica.responsavel()).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("SEM_PERMISSAO"));
+        fazPost("/escolas", corpo, fabrica.motorista()).andExpect(status().isForbidden());
+        fazGet("/escolas").andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void escolaSemNomeOuSemEnderecoDevolve400() throws Exception {
+        Usuario adm = fabrica.administrador();
+        fazPost("/escolas", Map.of("nome", " ", "endereco", endereco(true)), adm)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.nome").exists());
+        fazPost("/escolas", Map.of("nome", "Colégio Novo"), adm)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.endereco").exists());
+        fazPost("/escolas", Map.of("nome", "Colégio Novo", "endereco", Map.of("logradouro", "Rua X")), adm)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos['endereco.cep']").exists());
+    }
+
+    @Test
     void listaEscolasSemLoginComFiltrosDeCidadeENome() throws Exception {
         fabrica.escola("Colégio Girassol", "São Paulo", "-23.56", "-46.69");
         fabrica.escola("Escola Aquarela", "São Paulo", "-23.55", "-46.69");
