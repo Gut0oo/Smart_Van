@@ -33,6 +33,10 @@ public class Atendimento {
     @Column(name = "horario_saida_motorista", nullable = false)
     private LocalTime horarioSaidaMotorista;
 
+    //horário em que a van sai da escola na volta; aceita nulo só para não quebrar turno cadastrado antes deste campo
+    @Column(name = "horario_saida_escola")
+    private LocalTime horarioSaidaEscola;
+
     //horário limite de chegada à escola: início da aula menos a margem (smartvan.rota.margem-chegada-minutos)
     public LocalTime tetoChegada(int margemMinutos) {
         return horarioInicioAula.minusMinutes(margemMinutos);

@@ -56,7 +56,8 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
     }
 
     private Map<String, Object> atendimento(Long escolaId, String inicioAula, String saida) {
-        return Map.of("escolaId", escolaId, "horarioInicioAula", inicioAula, "horarioSaidaMotorista", saida);
+        return Map.of("escolaId", escolaId, "horarioInicioAula", inicioAula, "horarioSaidaMotorista", saida,
+                "horarioSaidaEscola", "12:00");
     }
 
     private Map<String, Object> atendimentos(Object... itens) {
@@ -266,6 +267,52 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
                 atendimento(escola, "07:00", "06:00")), fabrica.motorista())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void doisAtendimentosNoMesmoHorarioDevolvem422ESemApagarOsAnteriores() throws Exception {
+        Long a = fabrica.escola().getId();
+        Long b = fabrica.escola().getId();
+        Motorista m = fabrica.motorista();
+        fazPut("/motorista/escolas", atendimentos(atendimento(a, "07:00", "06:00")), m).andExpect(status().isOk());
+
+        //mesmo início da aula, em outra escola
+        fazPut("/motorista/escolas", atendimentos(atendimento(a, "07:00", "06:00"), atendimento(b, "07:00", "06:10")), m)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ATENDIMENTO_MESMO_HORARIO"));
+        //mesma saída do motorista
+        fazPut("/motorista/escolas", atendimentos(atendimento(a, "07:00", "06:00"), atendimento(b, "07:30", "06:00")), m)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ATENDIMENTO_MESMO_HORARIO"));
+
+        fazGet("/motorista/escolas", m).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void horarioDeSaidaDaEscolaEObrigatorioEVemNaResposta() throws Exception {
+        Long escola = fabrica.escola().getId();
+        Motorista m = fabrica.motorista();
+        Map<String, Object> semVolta = Map.of("escolaId", escola, "horarioInicioAula", "07:00",
+                "horarioSaidaMotorista", "06:00");
+
+        fazPut("/motorista/escolas", atendimentos(semVolta), m)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos['atendimentos[0].horarioSaidaEscola']").exists());
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola, "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].horarioSaidaEscola").value("12:00"));
+    }
+
+    @Test
+    void mudarSoOHorarioDeVoltaMantemOAtendimento() throws Exception {
+        Escola escola = fabrica.escola();
+        Motorista m = fabrica.motorista();
+        Long id = fabrica.atendimento(m, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)).getId();
+
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola.getId(), "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].horarioSaidaEscola").value("12:00"));
     }
 
     @Test

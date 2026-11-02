@@ -16,5 +16,3 @@ smartvan:
       cron: "0 0 6 * * *"
     cancelamentos:
       cron: "0 30 6 * * *"
-  mensalidade:
-    dia-vencimento: 10

@@ -1,6 +1,12 @@
 package br.com.smartvan;
 
+import br.com.smartvan.enums.StatusContrato;
+import br.com.smartvan.enums.TipoNotificacao;
+import br.com.smartvan.enums.TipoUsuario;
 import br.com.smartvan.model.Aluno;
+import br.com.smartvan.model.Escola;
+import br.com.smartvan.model.Motorista;
+import br.com.smartvan.model.Notificacao;
 import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.repository.FaltaRepository;
 import br.com.smartvan.suporte.TesteIntegracaoBase;
@@ -12,6 +18,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.time.LocalTime;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -47,6 +54,42 @@ class FaltaIntegracaoTest extends TesteIntegracaoBase {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.data").value(amanha))
                 .andExpect(jsonPath("$.motivo").value("consulta"));
+    }
+
+    @Test
+    void faltaAvisaNaHoraSoOMotoristaQueLevariaOAluno() throws Exception {
+        Escola escola = fabrica.escola();
+        Aluno comContrato = fabrica.aluno(resp, escola);
+        Motorista motorista = fabrica.motorista();
+        fabrica.contrato(resp, comContrato,
+                fabrica.atendimento(motorista, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)), StatusContrato.ATIVO);
+        Motorista outro = fabrica.motorista();
+        fabrica.contrato(resp, comContrato,
+                fabrica.atendimento(outro, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)), StatusContrato.ENCERRADO);
+
+        fazPost("/alunos/" + comContrato.getId() + "/faltas", Map.of("data", amanha), resp)
+                .andExpect(status().isCreated());
+
+        List<Notificacao> avisos = notificacoesDe(motorista, TipoNotificacao.ROTA_GERADA);
+        assertThat(avisos).hasSize(1);
+        assertThat(avisos.getFirst().getTitulo()).isEqualTo("Aluno vai faltar");
+        assertThat(avisos.getFirst().getMensagem()).contains(comContrato.getNome(), "04/11");
+        assertThat(notificacoesDe(outro)).isEmpty();
+    }
+
+    @Test
+    void faltaDepoisDoEncerramentoNaoAvisaOMotorista() throws Exception {
+        Escola escola = fabrica.escola();
+        Aluno comContrato = fabrica.aluno(resp, escola);
+        Motorista motorista = fabrica.motorista();
+        fabrica.comCancelamento(fabrica.contrato(resp, comContrato,
+                fabrica.atendimento(motorista, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)), StatusContrato.ATIVO),
+                TipoUsuario.RESPONSAVEL, relogio.hoje());
+
+        fazPost("/alunos/" + comContrato.getId() + "/faltas",
+                Map.of("data", relogio.hoje().plusDays(30).toString()), resp).andExpect(status().isCreated());
+
+        assertThat(notificacoesDe(motorista)).isEmpty();
     }
 
     @Test

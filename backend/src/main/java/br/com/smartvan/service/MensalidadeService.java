@@ -10,7 +10,6 @@ import br.com.smartvan.model.Contrato;
 import br.com.smartvan.model.Mensalidade;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.MensalidadeRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,22 +32,14 @@ public class MensalidadeService {
     private final NotificacaoService notificacoes;
     private final AuditoriaService auditoria;
     private final Clock clock;
-    private final int diaVencimento;
 
     public MensalidadeService(MensalidadeRepository mensalidades, ContratoRepository contratos,
-                              NotificacaoService notificacoes, AuditoriaService auditoria, Clock clock,
-                              @Value("${smartvan.mensalidade.dia-vencimento:10}") int diaVencimento) {
-        //até 28 para o dia existir em todos os meses; falha na subida em vez de quebrar a geração em fevereiro
-        if (diaVencimento < 1 || diaVencimento > 28) {
-            throw new IllegalStateException(
-                    "smartvan.mensalidade.dia-vencimento deve estar entre 1 e 28, mas veio " + diaVencimento + ".");
-        }
+                              NotificacaoService notificacoes, AuditoriaService auditoria, Clock clock) {
         this.mensalidades = mensalidades;
         this.contratos = contratos;
         this.notificacoes = notificacoes;
         this.auditoria = auditoria;
         this.clock = clock;
-        this.diaVencimento = diaVencimento;
     }
 
     /**
@@ -61,14 +52,19 @@ public class MensalidadeService {
         gerarCompetenciaAtual(evento.contratoId());
     }
 
-    /** Gera a competência atual do contrato ATIVO, se ainda não existir, e notifica. Devolve true se criou. */
+    /**
+     * Gera a competência atual do contrato ATIVO quando chega o vencimento dela, se ainda não existir, e notifica.
+     * Não gera se o contrato encerra até hoje: seria um mês sem serviço. Devolve true se criou.
+     */
     @Transactional
     public boolean gerarCompetenciaAtual(Long contratoId) {
         Contrato c = contratos.carregar(contratoId).orElseThrow(() -> RegraNegocioException.naoEncontrado("Contrato"));
         LocalDate hoje = LocalDate.now(clock);
         LocalDate competencia = hoje.withDayOfMonth(1);
         //o contrato pode ter sido encerrado depois que o agendador leu a lista de ativos
-        if (c.getStatus() != StatusContrato.ATIVO
+        LocalDate vencimento = calcularVencimento(c.getDataInicio(), competencia);
+        boolean encerraAteHoje = c.getDataEncerramentoEfetivo() != null && !c.getDataEncerramentoEfetivo().isAfter(hoje);
+        if (c.getStatus() != StatusContrato.ATIVO || hoje.isBefore(vencimento) || encerraAteHoje
                 || mensalidades.existsByContratoIdAndCompetencia(contratoId, competencia)) {
             return false;
         }
@@ -77,7 +73,7 @@ public class MensalidadeService {
         m.setContrato(c);
         m.setCompetencia(competencia);
         m.setValor(c.getValorMensal());
-        m.setVencimento(calcularVencimento(hoje, competencia));
+        m.setVencimento(vencimento);
         m.setStatus(StatusMensalidade.PENDENTE);
         //flush aqui: se o unique contrato/competência barrar, o erro aparece antes de notificar
         mensalidades.saveAndFlush(m);
@@ -88,10 +84,9 @@ public class MensalidadeService {
         return true;
     }
 
-    //passou do dia configurado: vence em hoje + 5, para a mensalidade não nascer atrasada
-    private LocalDate calcularVencimento(LocalDate hoje, LocalDate competencia) {
-        LocalDate vencimento = competencia.withDayOfMonth(diaVencimento);
-        return hoje.isAfter(vencimento) ? hoje.plusDays(5) : vencimento;
+    //todo mês no dia da assinatura; em mês mais curto, no último dia
+    private static LocalDate calcularVencimento(LocalDate dataInicio, LocalDate competencia) {
+        return competencia.withDayOfMonth(Math.min(dataInicio.getDayOfMonth(), competencia.lengthOfMonth()));
     }
 
     @Transactional(readOnly = true)

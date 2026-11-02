@@ -248,6 +248,7 @@ public class Fabrica {
         a.setEscola(escola);
         a.setHorarioInicioAula(inicioAula);
         a.setHorarioSaidaMotorista(saidaMotorista);
+        a.setHorarioSaidaEscola(LocalTime.of(12, 30));
         return atendimentos.save(a);
     }
 

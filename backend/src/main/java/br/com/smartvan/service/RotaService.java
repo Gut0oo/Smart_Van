@@ -7,6 +7,7 @@ import br.com.smartvan.enums.TipoNotificacao;
 import br.com.smartvan.enums.TipoParada;
 import br.com.smartvan.enums.TipoRota;
 import br.com.smartvan.exception.RegraNegocioException;
+import br.com.smartvan.exception.RotaSemAlunosException;
 import br.com.smartvan.maps.Coordenada;
 import br.com.smartvan.maps.MapsProvider;
 import br.com.smartvan.maps.OrdenadorPorProximidade;
@@ -59,8 +60,6 @@ import java.util.stream.Collectors;
 @Service
 public class RotaService {
 
-    //o atendimento não tem horário de volta
-    private static final LocalTime SAIDA_VOLTA = LocalTime.of(12, 30);
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DIA_MES = DateTimeFormatter.ofPattern("dd/MM");
 
@@ -103,7 +102,8 @@ public class RotaService {
         this.margemChegadaMinutos = margemChegadaMinutos;
     }
 
-    @Transactional
+    //sem alunos, a rota planejada antiga sai e o erro não pode desfazer isso
+    @Transactional(noRollbackFor = RotaSemAlunosException.class)
     public Resultado gerar(Long motoristaId, GerarRotaRequestDTO req) {
         if (req.data().isBefore(LocalDate.now(clock))) {
             throw RegraNegocioException.regra("DATA_PASSADA", "A data da rota não pode ser passada.");
@@ -117,9 +117,11 @@ public class RotaService {
         Motorista motorista = motoristas.findById(motoristaId).orElseThrow(RegraNegocioException::semPermissao);
 
         List<Aluno> alunos = alunosDaRota(atendimento.getId(), req.data());
+        List<Rota> existentes = rotas.findByMotoristaIdAndDataRotaAndTipoAndAtendimentoIdAndStatus(
+                motoristaId, req.data(), req.tipo(), atendimento.getId(), StatusRota.PLANEJADA);
         if (alunos.isEmpty()) {
-            throw RegraNegocioException.regra("ROTA_SEM_ALUNOS",
-                    "Nenhum aluno para esta rota (contratos ativos do atendimento, menos faltas).");
+            rotas.deleteAll(existentes);
+            throw new RotaSemAlunosException();
         }
         Endereco partida = motorista.getEnderecoPartida();
         if (partida == null) {
@@ -130,8 +132,6 @@ public class RotaService {
 
         //reaproveita a rota planejada só com o mesmo conjunto de alunos e sem pedido de outro horário ou veículo
         Set<Long> idsAlunos = alunos.stream().map(Aluno::getId).collect(Collectors.toSet());
-        List<Rota> existentes = rotas.findByMotoristaIdAndDataRotaAndTipoAndAtendimentoIdAndStatus(
-                motoristaId, req.data(), req.tipo(), atendimento.getId(), StatusRota.PLANEJADA);
         for (Rota existente : existentes) {
             if (idsDosAlunos(existente).equals(idsAlunos) && atendeAoPedido(existente, req)) {
                 return new Resultado(RotaResponseDTO.de(existente), false);
@@ -222,7 +222,7 @@ public class RotaService {
     }
 
     private List<Aluno> alunosDaRota(Long atendimentoId, LocalDate data) {
-        List<Aluno> todos = contratos.alunosAtivosDoAtendimento(atendimentoId);
+        List<Aluno> todos = contratos.alunosAtivosDoAtendimento(atendimentoId, data);
         if (todos.isEmpty()) {
             return todos;
         }
@@ -275,7 +275,14 @@ public class RotaService {
         if (req.horarioSaida() != null) {
             return req.horarioSaida();
         }
-        return req.tipo() == TipoRota.IDA ? atendimento.getHorarioSaidaMotorista() : SAIDA_VOLTA;
+        if (req.tipo() == TipoRota.IDA) {
+            return atendimento.getHorarioSaidaMotorista();
+        }
+        if (atendimento.getHorarioSaidaEscola() == null) {
+            throw RegraNegocioException.regra("HORARIO_VOLTA_OBRIGATORIO",
+                    "Cadastre o horário de saída da escola neste atendimento para gerar a rota de volta.");
+        }
+        return atendimento.getHorarioSaidaEscola();
     }
 
     //nulo quando o serviço de mapas falhou ou devolveu algo sem as paradas pedidas: quem chama usa o plano B

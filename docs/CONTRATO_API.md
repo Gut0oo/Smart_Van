@@ -62,7 +62,7 @@ UsuarioResumo { id, nome, telefone }
 | GET | `/responsavel/alunos` | RESPONSAVEL | → `Aluno[]` |
 | POST | `/motorista/veiculos` | MOTORISTA | `{ placa, modelo, ano, capacidade (1..60), tipo }` → **201** `Veiculo` |
 | GET | `/motorista/veiculos` | MOTORISTA | → `Veiculo[]` |
-| PUT | `/motorista/escolas` | MOTORISTA | `{ atendimentos: { escolaId, horarioInicioAula, horarioSaidaMotorista }[] }` → `Atendimento[]` |
+| PUT | `/motorista/escolas` | MOTORISTA | `{ atendimentos: { escolaId, horarioInicioAula, horarioSaidaMotorista, horarioSaidaEscola }[] }` → `Atendimento[]` |
 | GET | `/motorista/escolas` | MOTORISTA | → `Atendimento[]` |
 | PUT | `/motorista/endereco-partida` | MOTORISTA | `Endereco` → `EnderecoResp` |
 | GET | `/motorista/perfil` | MOTORISTA | → `{ usuario: Usuario, enderecoPartida?: EnderecoResp, veiculos: Veiculo[], escolas: EscolaResumo[] }` |
@@ -71,7 +71,7 @@ UsuarioResumo { id, nome, telefone }
 Usuario { id, nome, email, cpf, telefone, tipo, status, statusValidacao?: PENDENTE|EM_ANALISE|VALIDADO|REJEITADO }
 Aluno   { id, nome, dataNascimento, serie?, parentesco, escola: EscolaResumo, endereco: EnderecoResp }
 Veiculo { id, placa, modelo, ano, capacidade, tipo: VAN|MICRO_ONIBUS|CARRO }
-Atendimento { id, escola: Escola, horarioInicioAula, horarioSaidaMotorista, tetoChegada }
+Atendimento { id, escola: Escola, horarioInicioAula, horarioSaidaMotorista, horarioSaidaEscola?, tetoChegada }
 ```
 
 Regras:
@@ -79,8 +79,9 @@ Regras:
   A validação do motorista por administrador está fora do escopo desta entrega.
 - Placa duplicada → **409** `PLACA_JA_CADASTRADA`.
 - Aluno: grava `alunos`, `alunos_enderecos` (tipo `RESIDENCIAL`, principal) e `responsaveis_alunos` (`status_vinculo ATIVO`, `acompanha_rota true`).
-- Atendimento: motorista + escola + horário de início da aula + horário de saída do motorista. Um motorista pode ter
-  vários por escola. O `PUT /motorista/escolas` substitui a lista inteira (lista vazia remove todos; itens idênticos contam
+- Atendimento: motorista + escola + horário de início da aula + horário de saída do motorista + horário de saída da
+  escola (obrigatório no `PUT`, usado na VOLTA; só vem nulo em atendimento cadastrado antes desse campo). Um motorista pode
+  ter vários por escola, mas não dois com o mesmo início de aula ou a mesma saída (**422** `ATENDIMENTO_MESMO_HORARIO`). O `PUT /motorista/escolas` substitui a lista inteira (lista vazia remove todos; itens idênticos contam
   uma vez; escola inexistente → **404** `NAO_ENCONTRADO`).
 - `tetoChegada` = `horarioInicioAula` − `smartvan.rota.margem-chegada-minutos` (padrão 15).
 - `escolas` do perfil do motorista = escolas dos atendimentos, cada uma uma vez.
@@ -137,14 +138,14 @@ Perfil:
 - `totalClientes` = responsáveis distintos que já tiveram contrato `ATIVO` ou `ENCERRADO` com o motorista. Proposta `PENDENTE` ou `RECUSADO` não conta, e uma família com dois filhos conta como 1.
 
 Contrato:
-- Proposta: aluno e atendimento existem (**404** `NAO_ENCONTRADO`); aluno precisa pertencer ao responsável (**403** `SEM_PERMISSAO`); aluno estuda na escola do atendimento (**422** `ALUNO_DE_OUTRA_ESCOLA`); motorista `VALIDADO` (**422** `MOTORISTA_NAO_VALIDADO`); vaga no atendimento (**409** `SEM_VAGAS`); sem `PENDENTE` igual aluno+motorista, em qualquer atendimento dele (**409** `PROPOSTA_DUPLICADA`); aluno sem contrato `ATIVO` com qualquer motorista (**409** `ALUNO_JA_TEM_CONTRATO`). `dataInicio` = hoje na proposta.
-- Aceitar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`); rechecar vaga no atendimento (**409** `SEM_VAGAS`); aluno sem contrato `ATIVO`, porque pode ter propostas com vários motoristas (**409** `ALUNO_JA_TEM_CONTRATO`) → `ATIVO`, `dataInicio = hoje`, notifica responsável, publica `ContratoAtivadoEvent`.
+- Proposta: aluno e atendimento existem (**404** `NAO_ENCONTRADO`); aluno precisa pertencer ao responsável (**403** `SEM_PERMISSAO`); aluno estuda na escola do atendimento (**422** `ALUNO_DE_OUTRA_ESCOLA`); motorista `VALIDADO` (**422** `MOTORISTA_NAO_VALIDADO`); vaga no atendimento (**409** `SEM_VAGAS`); sem `PENDENTE` igual aluno+motorista, em qualquer atendimento dele (**409** `PROPOSTA_DUPLICADA`); aluno sem contrato `ATIVO` com qualquer motorista, exceto contrato em aviso prévio de cancelamento (**409** `ALUNO_JA_TEM_CONTRATO`). `dataInicio` = hoje na proposta.
+- Aceitar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`); rechecar vaga no atendimento (**409** `SEM_VAGAS`); aluno sem contrato `ATIVO`, exceto em aviso prévio, porque pode ter propostas com vários motoristas (**409** `ALUNO_JA_TEM_CONTRATO`) → `ATIVO`, `dataInicio = hoje`, notifica responsável, publica `ContratoAtivadoEvent`.
 - Recusar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`) → `RECUSADO`, notifica responsável.
 - Criar proposta notifica o motorista.
 - Proposta e aceite travam a linha do atendimento antes de contar as vagas (lock pessimista), para aceites simultâneos não passarem do limite.
 
 Efeito no `PUT /motorista/escolas` (seção 1), porque os contratos apontam para o atendimento:
-- Item igual a um atendimento existente (mesma escola e horários) mantém o `id`.
+- Item igual a um atendimento existente (mesma escola, início da aula e saída do motorista) mantém o `id`, e o `horarioSaidaEscola` é atualizado.
 - Remover atendimento com proposta `PENDENTE` ou contrato `ATIVO` → **409** `ATENDIMENTO_COM_CONTRATO`, sem alterar nada.
 - Remover atendimento só com contratos `RECUSADO` ou `ENCERRADO` é permitido: eles continuam, com `atendimento` nulo e `escola` igual à do aluno.
 
@@ -171,15 +172,15 @@ Rota  { id, data, tipo, status, atendimentoId?, escola: EscolaResumo, veiculo: {
 ```
 
 Regras:
-- Falta: data não pode ser passada (**422** `DATA_PASSADA`); duplicada → **409** `FALTA_JA_REGISTRADA`. Sem `mes`, a lista traz as faltas de hoje em diante.
+- Falta: data não pode ser passada (**422** `DATA_PASSADA`); duplicada → **409** `FALTA_JA_REGISTRADA`. Sem `mes`, a lista traz as faltas de hoje em diante. Registrar falta avisa na hora o motorista do contrato `ATIVO` que levaria o aluno na data (tipo `ROTA_GERADA`, título "Aluno vai faltar"); a rota só muda quando ele gera de novo.
 - Atendimento inexistente → **404** `NAO_ENCONTRADO`; de outro motorista → **403** `SEM_PERMISSAO`. A escola da rota vem do atendimento.
-- Rota usa os contratos `ATIVO` daquele atendimento, menos alunos com falta na `data`.
-- Sem alunos → **422** `ROTA_SEM_ALUNOS`. Motorista sem `enderecoPartida` → **422** `ENDERECO_PARTIDA_OBRIGATORIO`. Endereço sem coordenadas que não geocodifica → **422** `ENDERECO_SEM_COORDENADAS`.
+- Rota usa os contratos `ATIVO` daquele atendimento, menos alunos com falta na `data` e menos contratos com `dataEncerramentoEfetivo <= data`.
+- Sem alunos → **422** `ROTA_SEM_ALUNOS`, e a rota `PLANEJADA` anterior desse atendimento, data e tipo é apagada. Motorista sem `enderecoPartida` → **422** `ENDERECO_PARTIDA_OBRIGATORIO`. Endereço sem coordenadas que não geocodifica → **422** `ENDERECO_SEM_COORDENADAS`.
 - `veiculoId` opcional: se omitido e o motorista tem 1 veículo, usa ele; com 0 → **422** `VEICULO_OBRIGATORIO`; com vários → **422** `VEICULO_AMBIGUO`. Veículo de outro → **403**.
 - IDA: partida = `enderecoPartida`, paradas `EMBARQUE` na casa de cada aluno, destino = escola (parada final `DESEMBARQUE`, sem aluno). VOLTA: sai da escola (`EMBARQUE` sem aluno), `DESEMBARQUE` na casa de cada aluno, termina no `enderecoPartida`.
 - Reaproveitamento: se existe rota `PLANEJADA` com mesmo motorista+data+tipo+atendimento **e o mesmo conjunto de alunos**, devolve ela (200). Se o conjunto mudou (ex.: falta nova), ou se o pedido informar `horarioSaida` ou `veiculoId` diferentes dos da rota, apaga a antiga e gera outra (201). O que o pedido não informa não impede o reaproveitamento. A geração trava a linha do atendimento (lock pessimista), para gerações simultâneas não criarem duas rotas iguais.
 - Otimização via `MapsProvider.otimizarRota`. Se lançar exceção ou devolver vazio: ordena por vizinho mais próximo (haversine) a partir da partida, `otimizada = false`, `tempoEstimadoMinutos`/`distanciaKm` estimados (haversine × 1,3 a 25 km/h), `polyline` nulo.
-- `horarioSaida` informado prevalece. Sem ele, a IDA usa o `horarioSaidaMotorista` do atendimento e a VOLTA usa 12:30. `horarioPrevisto` de cada parada = saída + tempo acumulado.
+- `horarioSaida` informado prevalece. Sem ele, a IDA usa o `horarioSaidaMotorista` do atendimento e a VOLTA usa o `horarioSaidaEscola`; atendimento antigo sem esse horário → **422** `HORARIO_VOLTA_OBRIGATORIO`. `horarioPrevisto` de cada parada = saída + tempo acumulado.
 - Teto de chegada, só na IDA: se a chegada à escola passar de `tetoChegada` do atendimento (seção 1), a rota é gerada mesmo assim, com `foraDoTeto = true` e `minutosAdiantar` = minutos acima do teto, arredondados para cima. A estimativa do plano B também conta. Dentro do teto e na VOLTA: `foraDoTeto = false`, `minutosAdiantar` nulo.
 - `data` passada → **422** `DATA_PASSADA`. Status inicial `PLANEJADA`.
 - Depois de salvar: notifica cada responsável de aluno da rota com o horário previsto. Rota fora do teto também notifica o motorista (tipo `ROTA_GERADA`, título "Rota fora do teto de chegada") com os minutos a adiantar. Rota reaproveitada não notifica de novo.
@@ -203,10 +204,10 @@ Mensalidade { id, contratoId, competencia /*YYYY-MM-01*/, valor, vencimento, sta
 ```
 
 Regras:
-- Vencimento = dia `smartvan.mensalidade.dia-vencimento` (padrão **10**) da competência. Se o contrato for ativado depois do dia 10, o vencimento da primeira é hoje + 5 dias.
+- O sistema só registra a cobrança; a baixa é manual. A primeira mensalidade vence no dia da assinatura (aceite), e as seguintes vencem no mesmo dia dos meses seguintes. Em mês mais curto, vence no último dia.
 - Ao receber `ContratoAtivadoEvent`: gera a mensalidade da competência atual (se não existir) e notifica o responsável.
-- Agendador diário (`smartvan.agendador.mensalidades.cron`, padrão `0 0 6 * * *`, zona São Paulo): para cada contrato `ATIVO` gera a competência atual se não existir (idempotente pelo unique) e notifica; depois marca `ATRASADA` toda `PENDENTE` com `vencimento < hoje` e notifica responsável.
-- Contrato com cancelamento solicitado continua `ATIVO` → continua gerando (regra do cancelamento).
+- Agendador diário (`smartvan.agendador.mensalidades.cron`, padrão `0 0 6 * * *`, zona São Paulo): para cada contrato `ATIVO` cujo vencimento do mês já chegou, gera a competência atual se não existir (idempotente pelo unique) e notifica; depois marca `ATRASADA` toda `PENDENTE` com `vencimento < hoje` e notifica responsável.
+- Contrato com cancelamento solicitado continua `ATIVO` → continua gerando, exceto se o encerramento for até o dia do vencimento: esse mês não teria serviço.
 - Baixa: contrato precisa ser do motorista (**403**); já `PAGA` → **409** `MENSALIDADE_JA_PAGA`. Aceita `PENDENTE` ou `ATRASADA` → `PAGA`, `dataPagamento` (padrão hoje; não pode ser futura → **422** `DATA_FUTURA`), grava `auditorias` (acao `BAIXA_MENSALIDADE`), notifica responsável.
 - Serviço exposto para outros módulos: `MensalidadeConsultaService.existePendenteOuAtrasada(contratoId)`.
 

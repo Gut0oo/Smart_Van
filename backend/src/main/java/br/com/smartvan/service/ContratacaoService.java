@@ -287,7 +287,7 @@ public class ContratacaoService {
     }
 
     private void exigirAlunoSemContratoAtivo(Long alunoId) {
-        if (contratos.existsByAlunoIdAndStatus(alunoId, StatusContrato.ATIVO)) {
+        if (contratos.existsByAlunoIdAndStatusAndDataSolicitacaoCancelamentoIsNull(alunoId, StatusContrato.ATIVO)) {
             throw RegraNegocioException.conflito("ALUNO_JA_TEM_CONTRATO", "O aluno já possui um contrato ativo.");
         }
     }

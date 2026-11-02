@@ -2,6 +2,7 @@ package br.com.smartvan;
 
 import br.com.smartvan.enums.StatusContrato;
 import br.com.smartvan.enums.TipoNotificacao;
+import br.com.smartvan.enums.TipoUsuario;
 import br.com.smartvan.maps.MapsIndisponivelException;
 import br.com.smartvan.maps.RotaOtimizada;
 import br.com.smartvan.model.Aluno;
@@ -12,6 +13,7 @@ import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Notificacao;
 import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.model.Veiculo;
+import br.com.smartvan.repository.AtendimentoRepository;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.RotaRepository;
 import br.com.smartvan.repository.VeiculoRepository;
@@ -56,6 +58,7 @@ class RotaIntegracaoTest extends TesteIntegracaoBase {
     @Autowired ContratoRepository contratos;
     @Autowired RotaRepository rotas;
     @Autowired VeiculoRepository veiculos;
+    @Autowired AtendimentoRepository atendimentos;
     @Autowired EntityManagerFactory emf;
 
     Motorista motorista;
@@ -329,6 +332,62 @@ class RotaIntegracaoTest extends TesteIntegracaoBase {
         gerar(corpo("IDA"))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.codigo").value("ROTA_SEM_ALUNOS"));
+    }
+
+    @Test
+    void semAlunosARotaPlanejadaAntigaSai() throws Exception {
+        long id = idDe(gerar(corpo("IDA")).andExpect(status().isCreated()));
+        fabrica.falta(aluno1, amanha);
+        fabrica.falta(aluno2, amanha);
+
+        gerar(corpo("IDA"))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ROTA_SEM_ALUNOS"));
+
+        assertThat(rotas.findById(id)).isEmpty();
+        fazGet("/motorista/rotas?data=" + amanha, motorista).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void voltaUsaOHorarioDeSaidaDaEscolaDoAtendimento() throws Exception {
+        Atendimento manha = fabrica.atendimento(motorista, escola, LocalTime.of(13, 0), LocalTime.of(12, 0));
+        manha.setHorarioSaidaEscola(LocalTime.of(17, 40));
+        atendimentos.save(manha);
+        Responsavel r = fabrica.responsavel();
+        fabrica.contrato(r, fabrica.aluno(r, escola), manha, StatusContrato.ATIVO);
+        Map<String, Object> c = corpo("VOLTA");
+        c.put("atendimentoId", manha.getId());
+
+        gerar(c).andExpect(status().isCreated()).andExpect(jsonPath("$.horarioInicio").value("17:40"));
+    }
+
+    @Test
+    void voltaDeAtendimentoSemHorarioDeSaidaDaEscolaDa422() throws Exception {
+        atendimento.setHorarioSaidaEscola(null);
+        atendimentos.save(atendimento);
+
+        gerar(corpo("VOLTA"))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("HORARIO_VOLTA_OBRIGATORIO"));
+        gerar(corpoComSaida("VOLTA", "13:00")).andExpect(status().isCreated());
+    }
+
+    @Test
+    void alunoSaiDaRotaAPartirDoDiaDoEncerramentoDoContrato() throws Exception {
+        Contrato c = contratos.findAll().stream()
+                .filter(x -> x.getResponsavel().getId().equals(resp1.getId())).findFirst().orElseThrow();
+        fabrica.comCancelamento(c, TipoUsuario.RESPONSAVEL, relogio.hoje());
+        LocalDate encerramento = relogio.hoje().plusDays(30);
+
+        Map<String, Object> vespera = corpo("IDA");
+        vespera.put("data", encerramento.minusDays(1).toString());
+        gerar(vespera).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.paradas.length()").value(3));
+
+        Map<String, Object> noDia = corpo("IDA");
+        noDia.put("data", encerramento.toString());
+        gerar(noDia).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.paradas.length()").value(2));
     }
 
     @Test

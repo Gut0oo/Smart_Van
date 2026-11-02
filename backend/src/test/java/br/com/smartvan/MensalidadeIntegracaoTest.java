@@ -106,7 +106,7 @@ class MensalidadeIntegracaoTest extends TesteIntegracaoBase {
 
         Mensalidade m = unica();
         assertThat(m.getCompetencia()).isEqualTo(NOVEMBRO);
-        assertThat(m.getVencimento()).isEqualTo(LocalDate.of(2026, 11, 10));
+        assertThat(m.getVencimento()).isEqualTo(LocalDate.of(2026, 11, 3));
         assertThat(m.getStatus()).isEqualTo(StatusMensalidade.PENDENTE);
         assertThat(m.getValor()).isEqualByComparingTo("350.00");
         assertThat(m.getDataPagamento()).isNull();
@@ -135,31 +135,11 @@ class MensalidadeIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void ativacaoNoDiaDoVencimentoAindaVenceNoDia() {
-        relogio.definirData(LocalDate.of(2026, 11, 10));
-
-        publicador.publishEvent(new ContratoAtivadoEvent(ativo().getId()));
-
-        assertThat(unica().getVencimento()).isEqualTo(LocalDate.of(2026, 11, 10));
-    }
-
-    @Test
-    void ativacaoDepoisDoDiaDoVencimentoVenceEmHojeMaisCinco() {
-        relogio.definirData(LocalDate.of(2026, 11, 11));
-
-        publicador.publishEvent(new ContratoAtivadoEvent(ativo().getId()));
-
-        assertThat(unica().getVencimento()).isEqualTo(LocalDate.of(2026, 11, 16));
-    }
-
-    @Test
-    void ativacaoNoFimDoMesVenceNoMesSeguinteSemMudarACompetencia() {
-        relogio.definirData(LocalDate.of(2026, 11, 28));
-
+    void primeiraMensalidadeVenceNoDiaDaAssinatura() {
         publicador.publishEvent(new ContratoAtivadoEvent(ativo().getId()));
 
         assertThat(unica().getCompetencia()).isEqualTo(NOVEMBRO);
-        assertThat(unica().getVencimento()).isEqualTo(LocalDate.of(2026, 12, 3));
+        assertThat(unica().getVencimento()).isEqualTo(LocalDate.of(2026, 11, 3));
     }
 
     // ---------------------------------------------------------------- agendador: geração
@@ -199,15 +179,43 @@ class MensalidadeIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void agendadorGeraNovaCompetenciaNoMesSeguinte() {
+    void mensalidadeDoMesSeguinteNasceNoMesmoDiaDaAssinatura() {
         Contrato c = ativo();
         job.gerarCompetenciaAtual();
 
-        relogio.definirData(LocalDate.of(2026, 12, 1));
+        relogio.definirData(LocalDate.of(2026, 12, 2));
+        assertThat(job.gerarCompetenciaAtual()).isZero();
+
+        relogio.definirData(LocalDate.of(2026, 12, 3));
         assertThat(job.gerarCompetenciaAtual()).isEqualTo(1);
 
         assertThat(mensalidades.doContrato(c.getId())).extracting(Mensalidade::getVencimento)
-                .containsExactly(LocalDate.of(2026, 12, 10), LocalDate.of(2026, 11, 10));
+                .containsExactly(LocalDate.of(2026, 12, 3), LocalDate.of(2026, 11, 3));
+    }
+
+    @Test
+    void emMesMaisCurtoVenceNoUltimoDia() {
+        Contrato c = ativo();
+        c.setDataInicio(LocalDate.of(2026, 10, 31));
+        contratos.save(c);
+
+        relogio.definirData(LocalDate.of(2026, 11, 29));
+        assertThat(job.gerarCompetenciaAtual()).isZero();
+
+        relogio.definirData(LocalDate.of(2026, 11, 30));
+        assertThat(job.gerarCompetenciaAtual()).isEqualTo(1);
+        assertThat(unica().getVencimento()).isEqualTo(LocalDate.of(2026, 11, 30));
+    }
+
+    @Test
+    void contratoQueEncerraAteOVencimentoNaoGeraOMesSemServico() {
+        Contrato c = fabrica.comCancelamento(ativo(), TipoUsuario.RESPONSAVEL, LocalDate.of(2026, 11, 3));
+        assertThat(c.getDataEncerramentoEfetivo()).isEqualTo(LocalDate.of(2026, 12, 3));
+
+        relogio.definirData(LocalDate.of(2026, 12, 3));
+        assertThat(job.gerarCompetenciaAtual()).isZero();
+
+        assertThat(mensalidades.doContrato(c.getId())).isEmpty();
     }
 
     @Test
@@ -265,15 +273,15 @@ class MensalidadeIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void mensalidadeGeradaDepoisDoVencimentoNaoNasceAtrasada() {
+    void agendadorParadoGeraComOVencimentoDoContratoEMarcaAtraso() {
         ativo();
         relogio.definirData(LocalDate.of(2026, 11, 20));
 
         job.executar();
 
         Mensalidade m = unica();
-        assertThat(m.getVencimento()).isEqualTo(LocalDate.of(2026, 11, 25));
-        assertThat(m.getStatus()).isEqualTo(StatusMensalidade.PENDENTE);
+        assertThat(m.getVencimento()).isEqualTo(LocalDate.of(2026, 11, 3));
+        assertThat(m.getStatus()).isEqualTo(StatusMensalidade.ATRASADA);
     }
 
     // ---------------------------------------------------------------- baixa

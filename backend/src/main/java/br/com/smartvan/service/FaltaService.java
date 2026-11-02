@@ -3,10 +3,12 @@ package br.com.smartvan.service;
 import br.com.smartvan.dto.FaltaRequestDTO;
 import br.com.smartvan.dto.FaltaResponseDTO;
 import br.com.smartvan.enums.StatusVinculo;
+import br.com.smartvan.enums.TipoNotificacao;
 import br.com.smartvan.exception.RegraNegocioException;
 import br.com.smartvan.model.Aluno;
 import br.com.smartvan.model.Falta;
 import br.com.smartvan.repository.AlunoRepository;
+import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.FaltaRepository;
 import br.com.smartvan.repository.ResponsavelAlunoRepository;
 import org.springframework.stereotype.Service;
@@ -15,22 +17,29 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 //faltas do aluno: o responsável avisa que o aluno não vai num dia, e a parada sai da rota gerada para esse dia
 @Service
 public class FaltaService {
 
+    private static final DateTimeFormatter DIA_MES = DateTimeFormatter.ofPattern("dd/MM");
+
     private final FaltaRepository faltas;
     private final AlunoRepository alunos;
     private final ResponsavelAlunoRepository vinculos;
+    private final ContratoRepository contratos;
+    private final NotificacaoService notificacoes;
     private final Clock clock;
 
     public FaltaService(FaltaRepository faltas, AlunoRepository alunos, ResponsavelAlunoRepository vinculos,
-                        Clock clock) {
+                        ContratoRepository contratos, NotificacaoService notificacoes, Clock clock) {
         this.faltas = faltas;
         this.alunos = alunos;
         this.vinculos = vinculos;
+        this.contratos = contratos;
+        this.notificacoes = notificacoes;
         this.clock = clock;
     }
 
@@ -50,7 +59,18 @@ public class FaltaService {
         falta.setAluno(aluno);
         falta.setDataFalta(req.data());
         falta.setMotivo(req.motivo() == null || req.motivo().isBlank() ? null : req.motivo().trim());
-        return FaltaResponseDTO.de(faltas.save(falta));
+        falta = faltas.save(falta);
+        avisarMotoristas(aluno, req.data());
+        return FaltaResponseDTO.de(falta);
+    }
+
+    //o tipo é o de rota porque um tipo novo esbarra no CHECK de notificacoes.tipo dos bancos que já existem
+    private void avisarMotoristas(Aluno aluno, LocalDate data) {
+        String mensagem = "%s vai faltar em %s. Gere a rota desse dia de novo para atualizá-la."
+                .formatted(aluno.getNome(), data.format(DIA_MES));
+        for (Long motoristaId : contratos.motoristasDoAlunoNaData(aluno.getId(), data)) {
+            notificacoes.notificar(motoristaId, TipoNotificacao.ROTA_GERADA, "Aluno vai faltar", mensagem, null);
+        }
     }
 
     //sem mês: as faltas de hoje em diante

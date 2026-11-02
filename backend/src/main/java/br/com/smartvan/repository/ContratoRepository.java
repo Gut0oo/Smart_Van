@@ -25,10 +25,18 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
 
     String MAIS_RECENTES_PRIMEIRO = " order by c.dataInicio desc, c.id desc";
 
-    //alunos transportados neste turno; a ordem fixa é a mesma enviada ao serviço de mapas
+    //alunos transportados neste turno na data: no dia do encerramento o contrato já não conta.
+    //a ordem fixa é a mesma enviada ao serviço de mapas
     @Query("select al from Contrato c join c.aluno al where c.atendimento.id = :atendimentoId "
-            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO order by al.nome, al.id")
-    List<Aluno> alunosAtivosDoAtendimento(@Param("atendimentoId") Long atendimentoId);
+            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO "
+            + "and (c.dataEncerramentoEfetivo is null or c.dataEncerramentoEfetivo > :data) order by al.nome, al.id")
+    List<Aluno> alunosAtivosDoAtendimento(@Param("atendimentoId") Long atendimentoId, @Param("data") LocalDate data);
+
+    //motoristas que levariam o aluno na data
+    @Query("select distinct c.motorista.id from Contrato c where c.aluno.id = :alunoId "
+            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO "
+            + "and (c.dataEncerramentoEfetivo is null or c.dataEncerramentoEfetivo > :data)")
+    List<Long> motoristasDoAlunoNaData(@Param("alunoId") Long alunoId, @Param("data") LocalDate data);
 
     @Query(COM_ASSOCIACOES + "where c.id = :id")
     Optional<Contrato> carregar(@Param("id") Long id);
@@ -57,7 +65,8 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
 
     boolean existsByAlunoIdAndMotoristaIdAndStatus(Long alunoId, Long motoristaId, StatusContrato status);
 
-    boolean existsByAlunoIdAndStatus(Long alunoId, StatusContrato status);
+    //contrato em aviso prévio não conta: o aluno já pode contratar outro motorista
+    boolean existsByAlunoIdAndStatusAndDataSolicitacaoCancelamentoIsNull(Long alunoId, StatusContrato status);
 
     boolean existsByAtendimentoIdInAndStatusIn(Collection<Long> atendimentoIds, Collection<StatusContrato> status);
 

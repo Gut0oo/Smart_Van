@@ -26,7 +26,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashSet;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -62,6 +65,9 @@ public class MotoristaCadastroService {
         this.margemChegadaMinutos = margemChegadaMinutos;
     }
 
+    private record Chave(Long escolaId, LocalTime inicioAula, LocalTime saidaMotorista) {
+    }
+
     private Motorista motorista(Long id) {
         return motoristas.findById(id).orElseThrow(RegraNegocioException::semPermissao);
     }
@@ -94,22 +100,47 @@ public class MotoristaCadastroService {
             throw RegraNegocioException.naoEncontrado("Escola");
         }
 
-        Set<AtendimentoRequestDTO> aCriar = new LinkedHashSet<>(novos);
-        List<Atendimento> aRemover = atendimentos.travarDoMotorista(motoristaId).stream()
-                .filter(a -> !aCriar.remove(new AtendimentoRequestDTO(a.getEscola().getId(),
-                        a.getHorarioInicioAula(), a.getHorarioSaidaMotorista())))
-                .toList();
+        List<AtendimentoRequestDTO> distintos = novos.stream().distinct().toList();
+        exigirHorariosDiferentes(distintos);
+
+        //o horário de volta não identifica o turno: mudar só ele não pode impedir a alteração de quem tem contrato
+        Map<Chave, AtendimentoRequestDTO> aCriar = new LinkedHashMap<>();
+        distintos.forEach(req -> aCriar.put(
+                new Chave(req.escolaId(), req.horarioInicioAula(), req.horarioSaidaMotorista()), req));
+        List<Atendimento> aRemover = new ArrayList<>();
+        for (Atendimento a : atendimentos.travarDoMotorista(motoristaId)) {
+            AtendimentoRequestDTO mantido = aCriar.remove(
+                    new Chave(a.getEscola().getId(), a.getHorarioInicioAula(), a.getHorarioSaidaMotorista()));
+            if (mantido == null) {
+                aRemover.add(a);
+            } else {
+                a.setHorarioSaidaEscola(mantido.horarioSaidaEscola());
+            }
+        }
         remover(aRemover);
 
-        atendimentos.saveAll(aCriar.stream().map(req -> {
+        atendimentos.saveAll(aCriar.values().stream().map(req -> {
             Atendimento a = new Atendimento();
             a.setMotorista(m);
             a.setEscola(encontradas.get(req.escolaId()));
             a.setHorarioInicioAula(req.horarioInicioAula());
             a.setHorarioSaidaMotorista(req.horarioSaidaMotorista());
+            a.setHorarioSaidaEscola(req.horarioSaidaEscola());
             return a;
         }).toList());
         return listarAtendimentos(motoristaId);
+    }
+
+    //a mesma van não atende dois turnos ao mesmo tempo
+    private static void exigirHorariosDiferentes(List<AtendimentoRequestDTO> distintos) {
+        Set<LocalTime> inicios = new HashSet<>();
+        Set<LocalTime> saidas = new HashSet<>();
+        for (AtendimentoRequestDTO req : distintos) {
+            if (!inicios.add(req.horarioInicioAula()) || !saidas.add(req.horarioSaidaMotorista())) {
+                throw RegraNegocioException.regra("ATENDIMENTO_MESMO_HORARIO",
+                        "Não é possível cadastrar dois atendimentos no mesmo horário.");
+            }
+        }
     }
 
     //turno com proposta ou contrato em andamento não sai; contrato já terminado continua, sem o turno

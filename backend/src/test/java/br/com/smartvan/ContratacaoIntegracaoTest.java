@@ -3,6 +3,7 @@ package br.com.smartvan;
 import br.com.smartvan.enums.StatusContrato;
 import br.com.smartvan.enums.StatusMotorista;
 import br.com.smartvan.enums.TipoNotificacao;
+import br.com.smartvan.enums.TipoUsuario;
 import br.com.smartvan.event.ContratoAtivadoEvent;
 import br.com.smartvan.model.Aluno;
 import br.com.smartvan.model.Atendimento;
@@ -657,6 +658,36 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
                 .andExpect(jsonPath("$.codigo").value("ALUNO_JA_TEM_CONTRATO"));
     }
 
+    @Test
+    void duranteOAvisoPrevioOAlunoRecebeEAceitaPropostaDeOutroMotorista() throws Exception {
+        Escola e = fabrica.escola();
+        Responsavel r = fabrica.responsavel();
+        Aluno aluno = fabrica.aluno(r, e);
+        fabrica.comCancelamento(fabrica.contrato(r, aluno, atendimentoCom(e, 5), StatusContrato.ATIVO),
+                TipoUsuario.RESPONSAVEL, LocalDate.of(2026, 11, 3));
+        Atendimento novo = atendimentoCom(e, 5);
+
+        int id = json.readTree(propor(r, novo, aluno).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString()).get("id").asInt();
+
+        fazPostSemCorpo("/contratos/" + id + "/aceitar", novo.getMotorista())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ATIVO"));
+    }
+
+    @Test
+    void contratoNovoSemCancelamentoVoltaABloquearOutraProposta() throws Exception {
+        Escola e = fabrica.escola();
+        Responsavel r = fabrica.responsavel();
+        Aluno aluno = fabrica.aluno(r, e);
+        fabrica.comCancelamento(fabrica.contrato(r, aluno, atendimentoCom(e, 5), StatusContrato.ATIVO),
+                TipoUsuario.RESPONSAVEL, LocalDate.of(2026, 11, 3));
+        fabrica.contrato(r, aluno, atendimentoCom(e, 5), StatusContrato.ATIVO);
+
+        propor(r, atendimentoCom(e, 5), aluno).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.codigo").value("ALUNO_JA_TEM_CONTRATO"));
+    }
+
     // ---------------------------------------------------------------- aceite
 
     @Test
@@ -941,7 +972,8 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
     }
 
     private Map<String, Object> itemAtendimento(Escola e, String aula, String saida) {
-        return Map.of("escolaId", e.getId(), "horarioInicioAula", aula, "horarioSaidaMotorista", saida);
+        return Map.of("escolaId", e.getId(), "horarioInicioAula", aula, "horarioSaidaMotorista", saida,
+                "horarioSaidaEscola", "12:00");
     }
 
     @Test

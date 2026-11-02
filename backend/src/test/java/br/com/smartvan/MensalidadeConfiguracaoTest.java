@@ -8,8 +8,6 @@ import br.com.smartvan.service.MensalidadeJob;
 import br.com.smartvan.service.MensalidadeService;
 import br.com.smartvan.service.NotificacaoService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -34,33 +32,12 @@ class MensalidadeConfiguracaoTest {
             .withBean(Clock.class, Clock::systemUTC)
             .withUserConfiguration(MensalidadeService.class);
 
-    @ParameterizedTest
-    @ValueSource(ints = {0, 29, -1})
-    void aplicacaoNaoSobeComDiaDeVencimentoForaDaFaixa(int dia) {
-        contexto.withPropertyValues("smartvan.mensalidade.dia-vencimento=" + dia).run(ctx -> {
-            assertThat(ctx).hasFailed();
-            assertThat(ctx.getStartupFailure())
-                    .rootCause()
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("smartvan.mensalidade.dia-vencimento deve estar entre 1 e 28");
-        });
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {1, 28})
-    void aplicacaoSobeComDiaDeVencimentoNaFaixa(int dia) {
-        contexto.withPropertyValues("smartvan.mensalidade.dia-vencimento=" + dia)
-                .run(ctx -> assertThat(ctx).hasNotFailed());
-    }
-
     /** Nos testes de integração o agendador fica desligado: aqui lê o application.yml de produção e o liga. */
     @Test
     void configuracaoDeProducaoAgendaOJobNoCronDoContrato() {
         YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
         yaml.setResources(new FileSystemResource("src/main/resources/application.yml"));
         Properties producao = yaml.getObject();
-
-        assertThat(producao.getProperty("smartvan.mensalidade.dia-vencimento")).isEqualTo("10");
 
         contexto.withUserConfiguration(AgendadorConfig.class, MensalidadeJob.class)
                 .withInitializer(ctx -> ctx.getEnvironment().getPropertySources()
