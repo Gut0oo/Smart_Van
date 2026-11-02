@@ -128,12 +128,12 @@ public class RotaService {
         }
         Veiculo veiculo = escolherVeiculo(motoristaId, req.veiculoId());
 
-        //reaproveita a rota planejada só se o conjunto de alunos for o mesmo
+        //reaproveita a rota planejada só com o mesmo conjunto de alunos e sem pedido de outro horário ou veículo
         Set<Long> idsAlunos = alunos.stream().map(Aluno::getId).collect(Collectors.toSet());
         List<Rota> existentes = rotas.findByMotoristaIdAndDataRotaAndTipoAndAtendimentoIdAndStatus(
                 motoristaId, req.data(), req.tipo(), atendimento.getId(), StatusRota.PLANEJADA);
         for (Rota existente : existentes) {
-            if (idsDosAlunos(existente).equals(idsAlunos)) {
+            if (idsDosAlunos(existente).equals(idsAlunos) && atendeAoPedido(existente, req)) {
                 return new Resultado(RotaResponseDTO.de(existente), false);
             }
         }
@@ -233,6 +233,14 @@ public class RotaService {
     private static Set<Long> idsDosAlunos(Rota rota) {
         return rota.getParadas().stream().map(ParadaRota::getAluno).filter(Objects::nonNull)
                 .map(Aluno::getId).collect(Collectors.toSet());
+    }
+
+    //o que o pedido não informa não impede o reaproveitamento; o motorista adianta a saída mandando o novo horário
+    private static boolean atendeAoPedido(Rota rota, GerarRotaRequestDTO req) {
+        boolean mesmoHorario = req.horarioSaida() == null
+                || req.horarioSaida().truncatedTo(ChronoUnit.MINUTES).equals(rota.getHorarioInicio());
+        boolean mesmoVeiculo = req.veiculoId() == null || req.veiculoId().equals(rota.getVeiculo().getId());
+        return mesmoHorario && mesmoVeiculo;
     }
 
     private Veiculo escolherVeiculo(Long motoristaId, Long veiculoId) {

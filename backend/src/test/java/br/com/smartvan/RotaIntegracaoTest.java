@@ -14,6 +14,7 @@ import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.model.Veiculo;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.RotaRepository;
+import br.com.smartvan.repository.VeiculoRepository;
 import br.com.smartvan.suporte.FakeMapsProvider;
 import br.com.smartvan.suporte.TesteIntegracaoBase;
 import jakarta.persistence.EntityManagerFactory;
@@ -54,6 +55,7 @@ class RotaIntegracaoTest extends TesteIntegracaoBase {
 
     @Autowired ContratoRepository contratos;
     @Autowired RotaRepository rotas;
+    @Autowired VeiculoRepository veiculos;
     @Autowired EntityManagerFactory emf;
 
     Motorista motorista;
@@ -642,6 +644,55 @@ class RotaIntegracaoTest extends TesteIntegracaoBase {
                 .andExpect(jsonPath("$.minutosAdiantar").value(10));
 
         assertThat(notificacoesDe(motorista, TipoNotificacao.ROTA_GERADA)).hasSize(1);
+    }
+
+    @Test
+    void motoristaAdiantaASaidaEARotaForaDoTetoESubstituida() throws Exception {
+        long antiga = idDe(gerar(corpoComSaida("IDA", "06:40")).andExpect(status().isCreated()));
+
+        long nova = idDe(gerar(corpoComSaida("IDA", "06:20"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.horarioInicio").value("06:20"))
+                .andExpect(jsonPath("$.foraDoTeto").value(false))
+                .andExpect(jsonPath("$.minutosAdiantar").value(nullValue())));
+
+        assertThat(nova).isNotEqualTo(antiga);
+        assertThat(rotas.findById(antiga)).isEmpty();
+        assertThat(rotas.findAll()).hasSize(1);
+    }
+
+    @Test
+    void pedidoComOutroVeiculoSubstituiARota() throws Exception {
+        Veiculo segundo = fabrica.veiculo(motorista, 15);
+        Veiculo primeiro = veiculoDoCenario(segundo);
+        Map<String, Object> comPrimeiro = corpo("IDA");
+        comPrimeiro.put("veiculoId", primeiro.getId());
+        Map<String, Object> comSegundo = corpo("IDA");
+        comSegundo.put("veiculoId", segundo.getId());
+        long antiga = idDe(gerar(comPrimeiro).andExpect(status().isCreated()));
+
+        gerar(comPrimeiro).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(antiga));
+        gerar(comSegundo)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.veiculo.id").value(segundo.getId()));
+
+        assertThat(rotas.findAll()).hasSize(1);
+    }
+
+    private Veiculo veiculoDoCenario(Veiculo diferenteDe) {
+        return veiculos.findByMotoristaIdOrderByIdAsc(motorista.getId()).stream()
+                .filter(v -> !v.getId().equals(diferenteDe.getId()))
+                .findFirst().orElseThrow();
+    }
+
+    @Test
+    void pedidoSemHorarioNemVeiculoReaproveitaARotaComOHorarioDela() throws Exception {
+        long id = idDe(gerar(corpoComSaida("IDA", "06:20")).andExpect(status().isCreated()));
+
+        gerar(corpo("IDA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.horarioInicio").value("06:20"));
     }
 
     @Test
