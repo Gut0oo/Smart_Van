@@ -29,7 +29,7 @@ public class ContratacaoController {
     @GetMapping("/motoristas")
     @Papel(TipoUsuario.RESPONSAVEL)
     public List<MotoristaBuscaResponseDTO> buscar(
-            @RequestParam Long escolaId,
+            @RequestParam(required = false) Long escolaId,
             @RequestParam(required = false) @DateTimeFormat(pattern = "HH:mm") LocalTime horarioAula,
             @RequestParam(required = false) String cidade,
             @RequestParam(required = false) String nome) {
