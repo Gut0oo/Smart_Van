@@ -580,6 +580,22 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void valorMensalVoltaSempreComDuasCasas() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Responsavel r = fabrica.responsavel();
+        Aluno inteiro = fabrica.aluno(r, e);
+        Aluno umaCasa = fabrica.aluno(r, e);
+
+        fazPost("/contratos", Map.of("atendimentoId", a.getId(), "alunoId", inteiro.getId(), "valorMensal", 350), r)
+                .andExpect(status().isCreated())
+                .andExpect(content().string(containsString("\"valorMensal\":350.00")));
+        fazPost("/contratos", Map.of("atendimentoId", a.getId(), "alunoId", umaCasa.getId(), "valorMensal", 350.5), r)
+                .andExpect(status().isCreated())
+                .andExpect(content().string(containsString("\"valorMensal\":350.50")));
+    }
+
+    @Test
     void propostaComCamposInvalidosDevolve400() throws Exception {
         Responsavel r = fabrica.responsavel();
         fazPost("/contratos", Map.of(), r).andExpect(status().isBadRequest())

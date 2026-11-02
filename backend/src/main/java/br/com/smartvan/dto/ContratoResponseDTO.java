@@ -8,6 +8,7 @@ import br.com.smartvan.model.Escola;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -33,7 +34,9 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
     public static ContratoResponseDTO de(Contrato c) {
         Atendimento a = c.getAtendimento();
         Escola escola = a != null ? a.getEscola() : c.getAluno().getEscola();
-        return new ContratoResponseDTO(c.getId(), c.getStatus(), c.getValorMensal(), c.getDataInicio(),
+        //o contrato recém-criado ainda tem o valor como veio no pedido; o da API tem sempre 2 casas
+        BigDecimal valorMensal = c.getValorMensal().setScale(2, RoundingMode.HALF_UP);
+        return new ContratoResponseDTO(c.getId(), c.getStatus(), valorMensal, c.getDataInicio(),
                 AlunoResumoResponseDTO.de(c.getAluno()), UsuarioResumoResponseDTO.de(c.getResponsavel()),
                 UsuarioResumoResponseDTO.de(c.getMotorista()),
                 escola == null ? null : EscolaResumoResponseDTO.de(escola),
