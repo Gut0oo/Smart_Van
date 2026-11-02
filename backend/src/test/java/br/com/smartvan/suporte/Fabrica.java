@@ -269,6 +269,15 @@ public class Fabrica {
         return contratos.save(c);
     }
 
+    /** Grava a solicitação de cancelamento no contrato, feita na data dada e com encerramento 30 dias depois. */
+    public Contrato comCancelamento(Contrato contrato, TipoUsuario solicitante, LocalDate dataSolicitacao) {
+        contrato.setDataSolicitacaoCancelamento(dataSolicitacao);
+        contrato.setDataEncerramentoEfetivo(dataSolicitacao.plusDays(30));
+        contrato.setSolicitanteCancelamento(solicitante);
+        contrato.setMotivoCancelamento("Mudança de cidade");
+        return contratos.save(contrato);
+    }
+
     // ---------------------------------------------------------------- mensalidade
 
     /** Mensalidade direto no banco, com o valor do contrato e vencimento no dia 10 da competência. */
