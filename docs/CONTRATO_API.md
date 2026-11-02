@@ -123,11 +123,13 @@ Regras (seção 5 do contexto):
 - Busca e perfil exigem ≥1 aluno do responsável → senão **422** `ALUNO_OBRIGATORIO`.
 
 Busca:
-- `escolaId` é obrigatório (**400** `VALIDACAO` se faltar). `horarioAula` (`HH:mm`), `cidade` e `nome` são opcionais e combinam com AND.
+- `escolaId` é obrigatório, exceto com `nome` preenchido: sem os dois → **400** `VALIDACAO`. A lista geral só sai pelos filtros. `nome` em branco conta como não preenchido.
+- Os filtros que vierem combinam com AND.
 - `horarioAula` combina com o atendimento cujo início da aula esteja a até 30 minutos, para mais ou para menos. A janela não atravessa a meia-noite.
 - `cidade` é a da escola do atendimento; `cidade` e `nome` do motorista usam contains, case-insensitive.
 - Só motoristas `statusValidacao = VALIDADO` (condição na consulta, não filtro em memória).
-- Devolve os atendimentos que combinam, com as vagas de cada um. Atendimento sem vaga não aparece, e motorista sem nenhum atendimento na lista também não.
+- Devolve os atendimentos que combinam, com as vagas de cada um. Motorista sem nenhum atendimento na lista não aparece.
+- Com `escolaId`, atendimento sem vaga não aparece. Com `nome` e sem `escolaId`, ele aparece com `vagasRestantes: 0`, para o app mostrar "sem vagas".
 
 Perfil:
 - Motorista inexistente ou não `VALIDADO` → **404** `NAO_ENCONTRADO`.

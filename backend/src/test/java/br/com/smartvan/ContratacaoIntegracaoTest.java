@@ -313,6 +313,121 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
         assertThat(consultasDaBusca(url, r)).isEqualTo(comUm);
     }
 
+    // ---------------------------------------------------------------- pesquisa pelo nome
+
+    @Test
+    void semEscolaESemNomePreenchidoDevolve400() throws Exception {
+        Responsavel r = responsavelComAluno(fabrica.escola());
+        for (String url : List.of("/motoristas", "/motoristas?nome=", "/motoristas?nome=  ",
+                "/motoristas?cidade=paulo", "/motoristas?horarioAula=07:00")) {
+            fazGet(url, r).andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.codigo").value("VALIDACAO"));
+        }
+    }
+
+    @Test
+    void pesquisaPeloNomeSemEscolaTrazOsAtendimentosDeTodasAsEscolas() throws Exception {
+        Motorista ana = fabrica.motorista("Ana Souza", StatusMotorista.VALIDADO);
+        fabrica.veiculo(ana, 5);
+        Atendimento escolaA = fabrica.atendimento(ana, fabrica.escola("Colégio A"), AULA, SAIDA);
+        Atendimento escolaB = fabrica.atendimento(ana, fabrica.escola("Colégio B"), LocalTime.of(13, 0), LocalTime.of(12, 0));
+        atendimentoCom(fabrica.escola(), 5);
+
+        fazGet("/motoristas?nome=SOUZA", responsavelComAluno(fabrica.escola())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(ana.getId()))
+                .andExpect(jsonPath("$[0].atendimentos.length()").value(2))
+                .andExpect(jsonPath("$[0].atendimentos[0].id").value(escolaA.getId()))
+                .andExpect(jsonPath("$[0].atendimentos[1].id").value(escolaB.getId()));
+    }
+
+    @Test
+    void pesquisaPeloNomeSemEscolaMostraAtendimentoLotadoComZeroVagas() throws Exception {
+        Escola e = fabrica.escola();
+        Motorista ana = fabrica.motorista("Ana Souza", StatusMotorista.VALIDADO);
+        fabrica.veiculo(ana, 1);
+        Atendimento lotado = fabrica.atendimento(ana, e, AULA, SAIDA);
+        Responsavel r = fabrica.responsavel();
+        fabrica.contrato(r, fabrica.aluno(r, e), lotado, StatusContrato.ATIVO);
+
+        fazGet("/motoristas?nome=ana", r)
+                .andExpect(jsonPath("$[0].atendimentos.length()").value(1))
+                .andExpect(jsonPath("$[0].atendimentos[0].id").value(lotado.getId()))
+                .andExpect(jsonPath("$[0].atendimentos[0].vagasRestantes").value(0));
+    }
+
+    @Test
+    void pesquisaPeloNomeSemEscolaMostraMotoristaSemVeiculoComZeroVagas() throws Exception {
+        Escola e = fabrica.escola();
+        fabrica.atendimento(fabrica.motorista("Ana Souza", StatusMotorista.VALIDADO), e, AULA, SAIDA);
+
+        fazGet("/motoristas?nome=ana", responsavelComAluno(e))
+                .andExpect(jsonPath("$[0].veiculo").isEmpty())
+                .andExpect(jsonPath("$[0].atendimentos[0].vagasRestantes").value(0));
+    }
+
+    @Test
+    void comEscolaEComNomeAtendimentoLotadoContinuaForaDaLista() throws Exception {
+        Escola e = fabrica.escola();
+        Motorista ana = fabrica.motorista("Ana Souza", StatusMotorista.VALIDADO);
+        fabrica.veiculo(ana, 1);
+        Atendimento lotado = fabrica.atendimento(ana, e, AULA, SAIDA);
+        Responsavel r = fabrica.responsavel();
+        fabrica.contrato(r, fabrica.aluno(r, e), lotado, StatusContrato.ATIVO);
+
+        fazGet("/motoristas?escolaId=" + e.getId() + "&nome=ana", r).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void pesquisaPeloNomeCombinaComCidadeEHorario() throws Exception {
+        Escola campinas = fabrica.escola("Colégio Sol", "Campinas", "-22.90", "-47.06");
+        Escola santos = fabrica.escola("Colégio Mar", "Santos", "-23.96", "-46.33");
+        Motorista ana = fabrica.motorista("Ana Souza", StatusMotorista.VALIDADO);
+        fabrica.veiculo(ana, 5);
+        Atendimento emCampinas = fabrica.atendimento(ana, campinas, AULA, SAIDA);
+        Atendimento emSantos = fabrica.atendimento(ana, santos, LocalTime.of(13, 0), LocalTime.of(12, 0));
+        Responsavel r = responsavelComAluno(campinas);
+
+        fazGet("/motoristas?nome=ana&cidade=santos", r)
+                .andExpect(jsonPath("$[0].atendimentos.length()").value(1))
+                .andExpect(jsonPath("$[0].atendimentos[0].id").value(emSantos.getId()));
+        fazGet("/motoristas?nome=ana&horarioAula=07:30", r)
+                .andExpect(jsonPath("$[0].atendimentos.length()").value(1))
+                .andExpect(jsonPath("$[0].atendimentos[0].id").value(emCampinas.getId()));
+        fazGet("/motoristas?nome=ana&horarioAula=07:31", r).andExpect(jsonPath("$.length()").value(0));
+        fazGet("/motoristas?nome=ana&cidade=santos&horarioAula=07:00", r).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void pesquisaPeloNomeSoTrazValidadoEExigeAluno() throws Exception {
+        Escola e = fabrica.escola();
+        Motorista pendente = fabrica.motorista("Ana Pendente", StatusMotorista.PENDENTE);
+        fabrica.veiculo(pendente, 5);
+        fabrica.atendimento(pendente, e, AULA, SAIDA);
+
+        fazGet("/motoristas?nome=ana", responsavelComAluno(e)).andExpect(jsonPath("$.length()").value(0));
+        fazGet("/motoristas?nome=ana", fabrica.responsavel()).andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ALUNO_OBRIGATORIO"));
+    }
+
+    @Test
+    void pesquisaPeloNomeNaoFazConsultaPorMotorista() throws Exception {
+        Escola e = fabrica.escola();
+        Motorista primeiro = fabrica.motorista("Ana 0", StatusMotorista.VALIDADO);
+        fabrica.veiculo(primeiro, 5);
+        fabrica.atendimento(primeiro, e, AULA, SAIDA);
+        Responsavel r = responsavelComAluno(e);
+        long comUm = consultasDaBusca("/motoristas?nome=ana", r);
+
+        for (int i = 1; i <= 5; i++) {
+            Motorista m = fabrica.motorista("Ana " + i, StatusMotorista.VALIDADO);
+            fabrica.veiculo(m, 5);
+            fabrica.atendimento(m, fabrica.escola(), AULA, SAIDA);
+        }
+        fazGet("/motoristas?nome=ana", r).andExpect(jsonPath("$.length()").value(6));
+        assertThat(consultasDaBusca("/motoristas?nome=ana", r)).isEqualTo(comUm);
+    }
+
     // ---------------------------------------------------------------- perfil
 
     @Test
