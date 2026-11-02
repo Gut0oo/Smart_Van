@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,14 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
     @Query(COM_ASSOCIACOES + "where (r.id = :usuarioId or m.id = :usuarioId) and c.status = :status"
             + MAIS_RECENTES_PRIMEIRO)
     List<Contrato> doUsuarioComStatus(@Param("usuarioId") Long usuarioId, @Param("status") StatusContrato status);
+
+    @Query("select c.id from Contrato c where c.status = :status order by c.id")
+    List<Long> idsComStatus(@Param("status") StatusContrato status);
+
+    //contrato sem cancelamento tem a data nula e não entra: comparação com nulo não é verdadeira no SQL
+    @Query("select c.id from Contrato c where c.status = br.com.smartvan.enums.StatusContrato.ATIVO "
+            + "and c.dataEncerramentoEfetivo <= :data order by c.id")
+    List<Long> idsAtivosComEncerramentoAte(@Param("data") LocalDate data);
 
     long countByAtendimentoIdAndStatus(Long atendimentoId, StatusContrato status);
 

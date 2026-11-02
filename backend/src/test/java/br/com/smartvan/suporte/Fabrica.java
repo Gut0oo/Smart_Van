@@ -3,6 +3,7 @@ package br.com.smartvan.suporte;
 import br.com.smartvan.enums.Parentesco;
 import br.com.smartvan.enums.StatusConta;
 import br.com.smartvan.enums.StatusContrato;
+import br.com.smartvan.enums.StatusMensalidade;
 import br.com.smartvan.enums.StatusMotorista;
 import br.com.smartvan.enums.StatusVinculo;
 import br.com.smartvan.enums.TipoEndereco;
@@ -15,6 +16,7 @@ import br.com.smartvan.model.Atendimento;
 import br.com.smartvan.model.Contrato;
 import br.com.smartvan.model.Endereco;
 import br.com.smartvan.model.Escola;
+import br.com.smartvan.model.Mensalidade;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.model.ResponsavelAluno;
@@ -26,6 +28,7 @@ import br.com.smartvan.repository.AtendimentoRepository;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.EnderecoRepository;
 import br.com.smartvan.repository.EscolaRepository;
+import br.com.smartvan.repository.MensalidadeRepository;
 import br.com.smartvan.repository.MotoristaRepository;
 import br.com.smartvan.repository.ResponsavelAlunoRepository;
 import br.com.smartvan.repository.ResponsavelRepository;
@@ -66,6 +69,7 @@ public class Fabrica {
     private final VeiculoRepository veiculos;
     private final AtendimentoRepository atendimentos;
     private final ContratoRepository contratos;
+    private final MensalidadeRepository mensalidades;
 
     private String hashSenha;
 
@@ -73,7 +77,7 @@ public class Fabrica {
                    EscolaRepository escolas, AlunoRepository alunos, AlunoEnderecoRepository alunosEnderecos,
                    ResponsavelAlunoRepository vinculos, ResponsavelRepository responsaveis,
                    MotoristaRepository motoristas, VeiculoRepository veiculos, AtendimentoRepository atendimentos,
-                   ContratoRepository contratos) {
+                   ContratoRepository contratos, MensalidadeRepository mensalidades) {
         this.usuarios = usuarios;
         this.encoder = encoder;
         this.enderecos = enderecos;
@@ -86,6 +90,7 @@ public class Fabrica {
         this.veiculos = veiculos;
         this.atendimentos = atendimentos;
         this.contratos = contratos;
+        this.mensalidades = mensalidades;
     }
 
     private long proximo() {
@@ -262,6 +267,34 @@ public class Fabrica {
         c.setDataInicio(LocalDate.of(2026, 11, 3));
         c.setStatus(status);
         return contratos.save(c);
+    }
+
+    /** Grava a solicitação de cancelamento no contrato, feita na data dada e com encerramento 30 dias depois. */
+    public Contrato comCancelamento(Contrato contrato, TipoUsuario solicitante, LocalDate dataSolicitacao) {
+        contrato.setDataSolicitacaoCancelamento(dataSolicitacao);
+        contrato.setDataEncerramentoEfetivo(dataSolicitacao.plusDays(30));
+        contrato.setSolicitanteCancelamento(solicitante);
+        contrato.setMotivoCancelamento("Mudança de cidade");
+        return contratos.save(contrato);
+    }
+
+    // ---------------------------------------------------------------- mensalidade
+
+    /** Mensalidade direto no banco, com o valor do contrato e vencimento no dia 10 da competência. */
+    public Mensalidade mensalidade(Contrato contrato, LocalDate competencia, StatusMensalidade status) {
+        return mensalidade(contrato, competencia, competencia.withDayOfMonth(10), status);
+    }
+
+    public Mensalidade mensalidade(Contrato contrato, LocalDate competencia, LocalDate vencimento,
+                                   StatusMensalidade status) {
+        Mensalidade m = new Mensalidade();
+        m.setContrato(contrato);
+        m.setCompetencia(competencia);
+        m.setValor(contrato.getValorMensal());
+        m.setVencimento(vencimento);
+        m.setStatus(status);
+        m.setDataPagamento(status == StatusMensalidade.PAGA ? vencimento : null);
+        return mensalidades.save(m);
     }
 
     /** Define o endereço de partida do motorista (com coordenadas). Devolve o endereço. */
