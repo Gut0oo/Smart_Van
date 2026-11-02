@@ -27,6 +27,7 @@ import br.com.smartvan.repository.ResponsavelRepository;
 import br.com.smartvan.repository.VeiculoRepository;
 import br.com.smartvan.security.UsuarioLogado;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,9 +81,18 @@ public class ContratacaoService {
     @Transactional(readOnly = true)
     public List<MotoristaBuscaResponseDTO> buscar(Long responsavelId, Long escolaId, LocalTime horarioAula,
                                                   String cidade, String nome) {
+        //sem escola, só a pesquisa de um motorista pelo nome: a lista geral sai pelos filtros
+        boolean soPeloNome = escolaId == null;
+        if (soPeloNome && (nome == null || nome.isBlank())) {
+            throw new RegraNegocioException(HttpStatus.BAD_REQUEST, "VALIDACAO",
+                    "Informe a escola ou o nome do motorista.");
+        }
         exigirAluno(responsavelId);
-        List<Atendimento> encontrados = atendimentos.buscar(escolaId, inicioDaJanela(horarioAula),
-                fimDaJanela(horarioAula), padrao(cidade), padrao(nome));
+        LocalTime inicioDe = inicioDaJanela(horarioAula);
+        LocalTime inicioAte = fimDaJanela(horarioAula);
+        List<Atendimento> encontrados = soPeloNome
+                ? atendimentos.buscarEmTodasAsEscolas(inicioDe, inicioAte, padrao(cidade), padrao(nome))
+                : atendimentos.buscar(escolaId, inicioDe, inicioAte, padrao(cidade), padrao(nome));
         if (encontrados.isEmpty()) {
             return List.of();
         }
@@ -91,16 +101,17 @@ public class ContratacaoService {
         Map<Long, Veiculo> maiores = maioresVeiculos(encontrados.stream().map(a -> a.getMotorista().getId()).toList());
         Map<Long, Long> ativos = ativosPorAtendimento(encontrados.stream().map(Atendimento::getId).toList());
 
-        Map<Motorista, List<AtendimentoBuscaResponseDTO>> comVaga = new LinkedHashMap<>();
+        //na pesquisa pelo nome, o atendimento lotado aparece com 0 vagas para o app mostrar "sem vagas"
+        Map<Motorista, List<AtendimentoBuscaResponseDTO>> resultado = new LinkedHashMap<>();
         for (Atendimento a : encontrados) {
             int vagas = vagasRestantes(capacidade(maiores.get(a.getMotorista().getId())),
                     ativos.getOrDefault(a.getId(), 0L));
-            if (vagas > 0) {
-                comVaga.computeIfAbsent(a.getMotorista(), m -> new ArrayList<>())
+            if (vagas > 0 || soPeloNome) {
+                resultado.computeIfAbsent(a.getMotorista(), m -> new ArrayList<>())
                         .add(AtendimentoBuscaResponseDTO.de(a, vagas));
             }
         }
-        return comVaga.entrySet().stream()
+        return resultado.entrySet().stream()
                 .map(e -> MotoristaBuscaResponseDTO.de(e.getKey(), maiores.get(e.getKey().getId()), e.getValue()))
                 .toList();
     }
