@@ -131,7 +131,7 @@ Busca:
 - `escolaId` é obrigatório, exceto com `nome` preenchido: sem os dois → **400** `VALIDACAO`. A lista geral só sai pelos filtros. `nome` em branco conta como não preenchido.
 - Os filtros que vierem combinam com AND.
 - `horarioAula` combina com o atendimento cujo início da aula esteja a até 30 minutos, para mais ou para menos. A janela não atravessa a meia-noite.
-- `cidade` é a da escola do atendimento; `cidade` e `nome` do motorista usam contains, case-insensitive.
+- `cidade` é a da escola do atendimento; `cidade` e `nome` do motorista usam contains, case-insensitive. `%` e `_` digitados valem como texto, não como curinga: `nome=%` só encontra nomes com esse símbolo.
 - Só motoristas `statusValidacao = VALIDADO` (condição na consulta, não filtro em memória).
 - Devolve os atendimentos que combinam, com as vagas de cada um. Motorista sem nenhum atendimento na lista não aparece.
 - Com `escolaId`, atendimento sem vaga não aparece. Com `nome` e sem `escolaId`, ele aparece com `vagasRestantes: 0`, para o app mostrar "sem vagas".

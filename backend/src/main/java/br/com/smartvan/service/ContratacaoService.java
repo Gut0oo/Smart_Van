@@ -161,8 +161,10 @@ public class ContratacaoService {
         return horarioAula.plusMinutes(TOLERANCIA_HORARIO_MINUTOS);
     }
 
+    //% e _ digitados valem como texto: nome=% não pode virar a lista geral
     private static String padrao(String texto) {
-        return "%" + (texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT)) + "%";
+        String limpo = texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
+        return "%" + limpo.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
 
     private Map<Long, Veiculo> maioresVeiculos(Collection<Long> motoristaIds) {

@@ -23,11 +23,11 @@ public interface AtendimentoRepository extends JpaRepository<Atendimento, Long> 
     String BUSCA = "select a from Atendimento a join fetch a.motorista m join fetch a.escola e join fetch e.endereco en "
             + "where m.statusValidacao = br.com.smartvan.enums.StatusMotorista.VALIDADO "
             + "and a.horarioInicioAula between :inicioDe and :inicioAte "
-            + "and lower(en.cidade) like :cidade and lower(m.nome) like :nome ";
+            + "and lower(en.cidade) like :cidade escape '!' and lower(m.nome) like :nome escape '!' ";
 
     String ORDEM_DA_BUSCA = " order by m.nome, m.id, a.horarioInicioAula, a.horarioSaidaMotorista, a.id";
 
-    //padrões já em minúsculas e com % (ex.: "%pinheiros%")
+    //padrões já em minúsculas, com % e com os curingas do texto escapados por ! (ex.: "%pinheiros%")
     @Query(BUSCA + "and e.id = :escolaId" + ORDEM_DA_BUSCA)
     List<Atendimento> buscar(@Param("escolaId") Long escolaId, @Param("inicioDe") LocalTime inicioDe,
                              @Param("inicioAte") LocalTime inicioAte, @Param("cidade") String cidade,

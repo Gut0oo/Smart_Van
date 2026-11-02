@@ -431,6 +431,48 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
         assertThat(consultasDaBusca("/motoristas?nome=ana", r)).isEqualTo(comUm);
     }
 
+    @Test
+    void curingasNoNomeValemComoTextoENaoListamTodos() throws Exception {
+        Escola e = fabrica.escola();
+        Motorista comum = fabrica.motorista("Ana Silva", StatusMotorista.VALIDADO);
+        fabrica.veiculo(comum, 5);
+        fabrica.atendimento(comum, e, AULA, SAIDA);
+        Motorista comSimbolos = fabrica.motorista("Bia_100%!", StatusMotorista.VALIDADO);
+        fabrica.veiculo(comSimbolos, 5);
+        fabrica.atendimento(comSimbolos, e, AULA, SAIDA);
+        Responsavel r = responsavelComAluno(e);
+
+        fazGet("/motoristas?nome=a_s", r).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        fazGet("/motoristas?nome=%", r).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(comSimbolos.getId()));
+        fazGet("/motoristas?nome=_", r).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(comSimbolos.getId()));
+        fazGet("/motoristas?nome=!", r).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(comSimbolos.getId()));
+    }
+
+    @Test
+    void curingaSemNenhumNomeIgualNaoDevolveNinguem() throws Exception {
+        Escola e = fabrica.escola();
+        atendimentoCom(e, 5);
+        Responsavel r = responsavelComAluno(e);
+
+        fazGet("/motoristas?nome=%", r).andExpect(jsonPath("$.length()").value(0));
+        fazGet("/motoristas?nome=_", r).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void curingaNaCidadeTambemValeComoTexto() throws Exception {
+        Escola e = fabrica.escola();
+        atendimentoCom(e, 5);
+        Responsavel r = responsavelComAluno(e);
+        String url = "/motoristas?escolaId=" + e.getId();
+
+        fazGet(url + "&cidade=%", r).andExpect(jsonPath("$.length()").value(0));
+        fazGet(url + "&cidade=s_o", r).andExpect(jsonPath("$.length()").value(0));
+        fazGet(url + "&cidade=paulo", r).andExpect(jsonPath("$.length()").value(1));
+    }
+
     // ---------------------------------------------------------------- perfil
 
     @Test
