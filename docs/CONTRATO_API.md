@@ -157,29 +157,33 @@ Efeito no `PUT /motorista/escolas` (seção 1), porque os contratos apontam para
 | POST | `/alunos/{alunoId}/faltas` | RESPONSAVEL do aluno | `{ data, motivo? }` → **201** `Falta` |
 | GET | `/alunos/{alunoId}/faltas?mes=YYYY-MM` | RESPONSAVEL do aluno | → `Falta[]` |
 | DELETE | `/alunos/{alunoId}/faltas/{data}` | RESPONSAVEL do aluno | → **204** |
-| POST | `/motorista/rotas/gerar` | MOTORISTA | `{ data, tipo: IDA\|VOLTA, escolaId, veiculoId?, horarioSaida? }` → `Rota` (**201** nova, **200** reaproveitada) |
+| POST | `/motorista/rotas/gerar` | MOTORISTA | `{ data, tipo: IDA\|VOLTA, atendimentoId, veiculoId?, horarioSaida? }` → `Rota` (**201** nova, **200** reaproveitada) |
 | GET | `/motorista/rotas?data=` | MOTORISTA | → `Rota[]` do dia (padrão hoje) |
 | GET | `/motorista/rotas/{id}` | MOTORISTA dono | → `Rota` |
 
 ```ts
 Falta { id, data, motivo? }
-Rota  { id, data, tipo, status, escola: EscolaResumo, veiculo: { id, placa, modelo }, otimizada,
+Rota  { id, data, tipo, status, atendimentoId?, escola: EscolaResumo, veiculo: { id, placa, modelo }, otimizada,
         tempoEstimadoMinutos?, distanciaKm?, horarioInicio?, horarioFim?, polyline?,
+        foraDoTeto, minutosAdiantar?,
         paradas: { ordem, tipoParada: EMBARQUE|DESEMBARQUE, aluno?: AlunoResumo, endereco: EnderecoResp,
                    horarioPrevisto? }[] }
 ```
 
 Regras:
-- Falta: data não pode ser passada (**422** `DATA_PASSADA`); duplicada → **409** `FALTA_JA_REGISTRADA`.
-- Rota usa contratos `ATIVO` do motorista cujo aluno estuda na `escolaId`, menos alunos com falta na `data`.
+- Falta: data não pode ser passada (**422** `DATA_PASSADA`); duplicada → **409** `FALTA_JA_REGISTRADA`. Sem `mes`, a lista traz as faltas de hoje em diante.
+- Atendimento inexistente → **404** `NAO_ENCONTRADO`; de outro motorista → **403** `SEM_PERMISSAO`. A escola da rota vem do atendimento.
+- Rota usa os contratos `ATIVO` daquele atendimento, menos alunos com falta na `data`.
 - Sem alunos → **422** `ROTA_SEM_ALUNOS`. Motorista sem `enderecoPartida` → **422** `ENDERECO_PARTIDA_OBRIGATORIO`. Endereço sem coordenadas que não geocodifica → **422** `ENDERECO_SEM_COORDENADAS`.
 - `veiculoId` opcional: se omitido e o motorista tem 1 veículo, usa ele; com 0 → **422** `VEICULO_OBRIGATORIO`; com vários → **422** `VEICULO_AMBIGUO`. Veículo de outro → **403**.
 - IDA: partida = `enderecoPartida`, paradas `EMBARQUE` na casa de cada aluno, destino = escola (parada final `DESEMBARQUE`, sem aluno). VOLTA: sai da escola (`EMBARQUE` sem aluno), `DESEMBARQUE` na casa de cada aluno, termina no `enderecoPartida`.
-- Reaproveitamento: se existe rota `PLANEJADA` com mesmo motorista+data+tipo+escola **e o mesmo conjunto de alunos**, devolve ela (200). Se o conjunto mudou (ex.: falta nova), apaga a antiga e gera outra.
-- Otimização via `MapsProvider.otimizarRota`. Se lançar exceção ou devolver vazio: ordena por vizinho mais próximo (haversine) a partir da partida, `otimizada = false`, `tempoEstimadoMinutos`/`distanciaKm` estimados (haversine × 1,3 a 25 km/h) ou nulos, `polyline` nulo.
-- `horarioSaida` padrão: IDA 06:30, VOLTA 12:30. `horarioPrevisto` de cada parada = saída + tempo acumulado.
+- Reaproveitamento: se existe rota `PLANEJADA` com mesmo motorista+data+tipo+atendimento **e o mesmo conjunto de alunos**, devolve ela (200). Se o conjunto mudou (ex.: falta nova), apaga a antiga e gera outra. A geração trava a linha do atendimento (lock pessimista), para gerações simultâneas não criarem duas rotas iguais.
+- Otimização via `MapsProvider.otimizarRota`. Se lançar exceção ou devolver vazio: ordena por vizinho mais próximo (haversine) a partir da partida, `otimizada = false`, `tempoEstimadoMinutos`/`distanciaKm` estimados (haversine × 1,3 a 25 km/h), `polyline` nulo.
+- `horarioSaida` informado prevalece. Sem ele, a IDA usa o `horarioSaidaMotorista` do atendimento e a VOLTA usa 12:30. `horarioPrevisto` de cada parada = saída + tempo acumulado.
+- Teto de chegada, só na IDA: se a chegada à escola passar de `tetoChegada` do atendimento (seção 1), a rota é gerada mesmo assim, com `foraDoTeto = true` e `minutosAdiantar` = minutos acima do teto, arredondados para cima. A estimativa do plano B também conta. Dentro do teto e na VOLTA: `foraDoTeto = false`, `minutosAdiantar` nulo.
 - `data` passada → **422** `DATA_PASSADA`. Status inicial `PLANEJADA`.
-- Depois de salvar: notifica cada responsável de aluno da rota com o horário previsto.
+- Depois de salvar: notifica cada responsável de aluno da rota com o horário previsto. Rota fora do teto também notifica o motorista (tipo `ROTA_GERADA`, título "Rota fora do teto de chegada") com os minutos a adiantar. Rota reaproveitada não notifica de novo.
+- Efeito no `PUT /motorista/escolas` (seção 1): remover um atendimento mantém as rotas dele, com `atendimentoId` nulo. Rota sem atendimento não é reaproveitada.
 - Testes nunca chamam o Google: usar `FakeMapsProvider`.
 
 ---

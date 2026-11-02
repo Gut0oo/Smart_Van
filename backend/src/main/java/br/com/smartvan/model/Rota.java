@@ -37,6 +37,15 @@ public class Rota {
     @JoinColumn(name = "escola_id", nullable = false)
     private Escola escola;
 
+    //turno que gerou a rota; fica nulo se o motorista remover o turno depois, e aí a rota não é mais reaproveitada
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "atendimento_id")
+    private Atendimento atendimento;
+
+    //minutos que a chegada à escola passa do teto; nulo dentro do teto e na volta, que não tem teto
+    @Column(name = "minutos_acima_teto")
+    private Integer minutosAcimaTeto;
+
     @Column(name = "data_rota", nullable = false)
     private LocalDate dataRota;
 

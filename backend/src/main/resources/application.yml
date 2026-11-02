@@ -23,3 +23,5 @@ smartvan:
     dia-vencimento: 10   # de 1 a 28; fora disso a aplicação não sobe
   rota:
     margem-chegada-minutos: 15   # teto de chegada à escola = início da aula - margem
+  google-maps:
+    api-key: ${GOOGLE_MAPS_API_KEY:}   # vazia: sem Google, a rota usa o plano B por proximidade

@@ -16,6 +16,7 @@ import br.com.smartvan.model.Atendimento;
 import br.com.smartvan.model.Contrato;
 import br.com.smartvan.model.Endereco;
 import br.com.smartvan.model.Escola;
+import br.com.smartvan.model.Falta;
 import br.com.smartvan.model.Mensalidade;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
@@ -28,6 +29,7 @@ import br.com.smartvan.repository.AtendimentoRepository;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.EnderecoRepository;
 import br.com.smartvan.repository.EscolaRepository;
+import br.com.smartvan.repository.FaltaRepository;
 import br.com.smartvan.repository.MensalidadeRepository;
 import br.com.smartvan.repository.MotoristaRepository;
 import br.com.smartvan.repository.ResponsavelAlunoRepository;
@@ -70,6 +72,7 @@ public class Fabrica {
     private final AtendimentoRepository atendimentos;
     private final ContratoRepository contratos;
     private final MensalidadeRepository mensalidades;
+    private final FaltaRepository faltas;
 
     private String hashSenha;
 
@@ -77,7 +80,7 @@ public class Fabrica {
                    EscolaRepository escolas, AlunoRepository alunos, AlunoEnderecoRepository alunosEnderecos,
                    ResponsavelAlunoRepository vinculos, ResponsavelRepository responsaveis,
                    MotoristaRepository motoristas, VeiculoRepository veiculos, AtendimentoRepository atendimentos,
-                   ContratoRepository contratos, MensalidadeRepository mensalidades) {
+                   ContratoRepository contratos, MensalidadeRepository mensalidades, FaltaRepository faltas) {
         this.usuarios = usuarios;
         this.encoder = encoder;
         this.enderecos = enderecos;
@@ -91,6 +94,7 @@ public class Fabrica {
         this.atendimentos = atendimentos;
         this.contratos = contratos;
         this.mensalidades = mensalidades;
+        this.faltas = faltas;
     }
 
     private long proximo() {
@@ -295,6 +299,15 @@ public class Fabrica {
         m.setStatus(status);
         m.setDataPagamento(status == StatusMensalidade.PAGA ? vencimento : null);
         return mensalidades.save(m);
+    }
+
+    // ---------------------------------------------------------------- falta
+
+    public Falta falta(Aluno aluno, LocalDate data) {
+        Falta f = new Falta();
+        f.setAluno(aluno);
+        f.setDataFalta(data);
+        return faltas.save(f);
     }
 
     /** Define o endereço de partida do motorista (com coordenadas). Devolve o endereço. */

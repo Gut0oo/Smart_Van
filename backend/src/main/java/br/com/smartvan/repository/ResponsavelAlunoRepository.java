@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -17,6 +18,10 @@ public interface ResponsavelAlunoRepository
             + "where ra.responsavel.id = :responsavelId "
             + "and ra.statusVinculo = br.com.smartvan.enums.StatusVinculo.ATIVO order by a.nome, a.id")
     List<ResponsavelAluno> ativosDoResponsavel(@Param("responsavelId") Long responsavelId);
+
+    @Query("select ra from ResponsavelAluno ra where ra.aluno.id in :alunoIds "
+            + "and ra.statusVinculo = br.com.smartvan.enums.StatusVinculo.ATIVO")
+    List<ResponsavelAluno> ativosDosAlunos(@Param("alunoIds") Collection<Long> alunoIds);
 
     boolean existsByResponsavelIdAndStatusVinculo(Long responsavelId, StatusVinculo statusVinculo);
 

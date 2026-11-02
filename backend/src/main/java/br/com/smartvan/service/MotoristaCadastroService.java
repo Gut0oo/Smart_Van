@@ -20,6 +20,7 @@ import br.com.smartvan.repository.AtendimentoRepository;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.EscolaRepository;
 import br.com.smartvan.repository.MotoristaRepository;
+import br.com.smartvan.repository.RotaRepository;
 import br.com.smartvan.repository.VeiculoRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -42,18 +43,21 @@ public class MotoristaCadastroService {
     private final EscolaRepository escolas;
     private final AtendimentoRepository atendimentos;
     private final ContratoRepository contratos;
+    private final RotaRepository rotas;
     private final EnderecoService enderecoService;
     private final int margemChegadaMinutos;
 
     public MotoristaCadastroService(MotoristaRepository motoristas, VeiculoRepository veiculos,
                                     EscolaRepository escolas, AtendimentoRepository atendimentos,
-                                    ContratoRepository contratos, EnderecoService enderecoService,
+                                    ContratoRepository contratos, RotaRepository rotas,
+                                    EnderecoService enderecoService,
                                     @Value("${smartvan.rota.margem-chegada-minutos:15}") int margemChegadaMinutos) {
         this.motoristas = motoristas;
         this.veiculos = veiculos;
         this.escolas = escolas;
         this.atendimentos = atendimentos;
         this.contratos = contratos;
+        this.rotas = rotas;
         this.enderecoService = enderecoService;
         this.margemChegadaMinutos = margemChegadaMinutos;
     }
@@ -119,6 +123,7 @@ public class MotoristaCadastroService {
                     "Não é possível remover um atendimento com proposta pendente ou contrato ativo.");
         }
         contratos.desvincularAtendimentos(ids);
+        rotas.desvincularAtendimentos(ids);
         atendimentos.deleteAll(aRemover);
     }
 

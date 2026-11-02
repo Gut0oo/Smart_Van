@@ -1,6 +1,7 @@
 package br.com.smartvan.repository;
 
 import br.com.smartvan.enums.StatusContrato;
+import br.com.smartvan.model.Aluno;
 import br.com.smartvan.model.Contrato;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,6 +24,11 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
             + "left join fetch c.atendimento atend left join fetch atend.escola ";
 
     String MAIS_RECENTES_PRIMEIRO = " order by c.dataInicio desc, c.id desc";
+
+    //alunos transportados neste turno; a ordem fixa é a mesma enviada ao serviço de mapas
+    @Query("select al from Contrato c join c.aluno al where c.atendimento.id = :atendimentoId "
+            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO order by al.nome, al.id")
+    List<Aluno> alunosAtivosDoAtendimento(@Param("atendimentoId") Long atendimentoId);
 
     @Query(COM_ASSOCIACOES + "where c.id = :id")
     Optional<Contrato> carregar(@Param("id") Long id);

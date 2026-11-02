@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-/** Implementação usada quando não há chave do Google. Registrada em br.com.smartvan.config.MapsConfig. */
+/** Implementação usada quando não há chave do Google. Escolhida em br.com.smartvan.config.MapsConfig. */
 public class MapsIndisponivel implements MapsProvider {
 
     @Override
