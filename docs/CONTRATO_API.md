@@ -139,7 +139,7 @@ Perfil:
 
 Contrato:
 - Proposta: aluno e atendimento existem (**404** `NAO_ENCONTRADO`); aluno precisa pertencer ao responsável (**403** `SEM_PERMISSAO`); aluno estuda na escola do atendimento (**422** `ALUNO_DE_OUTRA_ESCOLA`); motorista `VALIDADO` (**422** `MOTORISTA_NAO_VALIDADO`); vaga no atendimento (**409** `SEM_VAGAS`); sem `PENDENTE` igual aluno+motorista, em qualquer atendimento dele (**409** `PROPOSTA_DUPLICADA`); aluno sem contrato `ATIVO` com qualquer motorista, exceto contrato em aviso prévio de cancelamento (**409** `ALUNO_JA_TEM_CONTRATO`). `dataInicio` = hoje na proposta.
-- Aceitar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`); rechecar vaga no atendimento (**409** `SEM_VAGAS`); aluno sem contrato `ATIVO`, exceto em aviso prévio, porque pode ter propostas com vários motoristas (**409** `ALUNO_JA_TEM_CONTRATO`) → `ATIVO`, `dataInicio = hoje`, notifica responsável, publica `ContratoAtivadoEvent`.
+- Aceitar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`); rechecar vaga no atendimento (**409** `SEM_VAGAS`); aluno sem contrato `ATIVO`, exceto em aviso prévio, porque pode ter propostas com vários motoristas (**409** `ALUNO_JA_TEM_CONTRATO`) → `ATIVO`, `dataInicio = hoje`, notifica responsável, publica `ContratoAtivadoEvent`. Se o aluno tiver contrato em aviso prévio, `dataInicio` = `dataEncerramentoEfetivo` desse contrato: o novo fica `ATIVO` e ocupa a vaga desde o aceite, mas só entra em rota e em cobrança a partir dessa data.
 - Recusar: precisa estar `PENDENTE` (**409** `CONTRATO_NAO_PENDENTE`) → `RECUSADO`, notifica responsável.
 - Criar proposta notifica o motorista.
 - Proposta e aceite travam a linha do atendimento antes de contar as vagas (lock pessimista), para aceites simultâneos não passarem do limite.
@@ -174,7 +174,7 @@ Rota  { id, data, tipo, status, atendimentoId?, escola: EscolaResumo, veiculo: {
 Regras:
 - Falta: data não pode ser passada (**422** `DATA_PASSADA`); duplicada → **409** `FALTA_JA_REGISTRADA`. Sem `mes`, a lista traz as faltas de hoje em diante. Registrar falta avisa na hora o motorista do contrato `ATIVO` que levaria o aluno na data (tipo `ROTA_GERADA`, título "Aluno vai faltar"); a rota só muda quando ele gera de novo.
 - Atendimento inexistente → **404** `NAO_ENCONTRADO`; de outro motorista → **403** `SEM_PERMISSAO`. A escola da rota vem do atendimento.
-- Rota usa os contratos `ATIVO` daquele atendimento, menos alunos com falta na `data` e menos contratos com `dataEncerramentoEfetivo <= data`.
+- Rota usa os contratos `ATIVO` daquele atendimento, menos alunos com falta na `data`, menos contratos com `dataEncerramentoEfetivo <= data` e menos contratos com `dataInicio > data`. Assim, na troca de motorista durante o aviso prévio, o aluno fica em uma rota só por data.
 - Sem alunos → **422** `ROTA_SEM_ALUNOS`, e a rota `PLANEJADA` anterior desse atendimento, data e tipo é apagada. Motorista sem `enderecoPartida` → **422** `ENDERECO_PARTIDA_OBRIGATORIO`. Endereço sem coordenadas que não geocodifica → **422** `ENDERECO_SEM_COORDENADAS`.
 - `veiculoId` opcional: se omitido e o motorista tem 1 veículo, usa ele; com 0 → **422** `VEICULO_OBRIGATORIO`; com vários → **422** `VEICULO_AMBIGUO`. Veículo de outro → **403**.
 - IDA: partida = `enderecoPartida`, paradas `EMBARQUE` na casa de cada aluno, destino = escola (parada final `DESEMBARQUE`, sem aluno). VOLTA: sai da escola (`EMBARQUE` sem aluno), `DESEMBARQUE` na casa de cada aluno, termina no `enderecoPartida`.
@@ -204,7 +204,7 @@ Mensalidade { id, contratoId, competencia /*YYYY-MM-01*/, valor, vencimento, sta
 ```
 
 Regras:
-- O sistema só registra a cobrança; a baixa é manual. A primeira mensalidade vence no dia da assinatura (aceite), e as seguintes vencem no mesmo dia dos meses seguintes. Em mês mais curto, vence no último dia.
+- O sistema só registra a cobrança; a baixa é manual. A primeira mensalidade vence no dia de início do contrato (o aceite ou, durante o aviso prévio de outro contrato, o encerramento dele), e as seguintes vencem no mesmo dia dos meses seguintes. Em mês mais curto, vence no último dia. Cada aluno tem no máximo uma cobrança por competência: se já houve cobrança no mês por outro contrato, a primeira do novo fica para o mês seguinte.
 - Ao receber `ContratoAtivadoEvent`: gera a mensalidade da competência atual (se não existir) e notifica o responsável.
 - Agendador diário (`smartvan.agendador.mensalidades.cron`, padrão `0 0 6 * * *`, zona São Paulo): para cada contrato `ATIVO` cujo vencimento do mês já chegou, gera a competência atual se não existir (idempotente pelo unique) e notifica; depois marca `ATRASADA` toda `PENDENTE` com `vencimento < hoje` e notifica responsável.
 - Contrato com cancelamento solicitado continua `ATIVO` → continua gerando, exceto se o encerramento for até o dia do vencimento: esse mês não teria serviço.

@@ -64,5 +64,7 @@ public interface MensalidadeRepository extends JpaRepository<Mensalidade, Long> 
 
     boolean existsByContratoIdAndCompetencia(Long contratoId, LocalDate competencia);
 
+    boolean existsByContratoAlunoIdAndCompetencia(Long alunoId, LocalDate competencia);
+
     boolean existsByContratoIdAndStatusIn(Long contratoId, Collection<StatusMensalidade> status);
 }

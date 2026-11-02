@@ -54,7 +54,8 @@ public class MensalidadeService {
 
     /**
      * Gera a competência atual do contrato ATIVO quando chega o vencimento dela, se ainda não existir, e notifica.
-     * Não gera se o contrato encerra até hoje: seria um mês sem serviço. Devolve true se criou.
+     * Não gera se o contrato ainda não começou, se encerra até hoje (seria um mês sem serviço) ou se o aluno já tem
+     * cobrança nessa competência por outro contrato, como na troca de motorista. Devolve true se criou.
      */
     @Transactional
     public boolean gerarCompetenciaAtual(Long contratoId) {
@@ -64,8 +65,8 @@ public class MensalidadeService {
         //o contrato pode ter sido encerrado depois que o agendador leu a lista de ativos
         LocalDate vencimento = calcularVencimento(c.getDataInicio(), competencia);
         boolean encerraAteHoje = c.getDataEncerramentoEfetivo() != null && !c.getDataEncerramentoEfetivo().isAfter(hoje);
-        if (c.getStatus() != StatusContrato.ATIVO || hoje.isBefore(vencimento) || encerraAteHoje
-                || mensalidades.existsByContratoIdAndCompetencia(contratoId, competencia)) {
+        if (c.getStatus() != StatusContrato.ATIVO || hoje.isBefore(c.getDataInicio()) || hoje.isBefore(vencimento)
+                || encerraAteHoje || mensalidades.existsByContratoAlunoIdAndCompetencia(c.getAluno().getId(), competencia)) {
             return false;
         }
 

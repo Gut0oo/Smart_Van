@@ -25,16 +25,16 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
 
     String MAIS_RECENTES_PRIMEIRO = " order by c.dataInicio desc, c.id desc";
 
-    //alunos transportados neste turno na data: no dia do encerramento o contrato já não conta.
+    //alunos transportados neste turno na data: o contrato conta do início até a véspera do encerramento.
     //a ordem fixa é a mesma enviada ao serviço de mapas
     @Query("select al from Contrato c join c.aluno al where c.atendimento.id = :atendimentoId "
-            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO "
+            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO and c.dataInicio <= :data "
             + "and (c.dataEncerramentoEfetivo is null or c.dataEncerramentoEfetivo > :data) order by al.nome, al.id")
     List<Aluno> alunosAtivosDoAtendimento(@Param("atendimentoId") Long atendimentoId, @Param("data") LocalDate data);
 
     //motoristas que levariam o aluno na data
     @Query("select distinct c.motorista.id from Contrato c where c.aluno.id = :alunoId "
-            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO "
+            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO and c.dataInicio <= :data "
             + "and (c.dataEncerramentoEfetivo is null or c.dataEncerramentoEfetivo > :data)")
     List<Long> motoristasDoAlunoNaData(@Param("alunoId") Long alunoId, @Param("data") LocalDate data);
 
@@ -64,6 +64,12 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
     long countByAtendimentoIdAndStatus(Long atendimentoId, StatusContrato status);
 
     boolean existsByAlunoIdAndMotoristaIdAndStatus(Long alunoId, Long motoristaId, StatusContrato status);
+
+    //encerramento do contrato em aviso prévio que o aluno ainda tem; o contrato novo só começa nessa data
+    @Query("select max(c.dataEncerramentoEfetivo) from Contrato c where c.aluno.id = :alunoId and c.id <> :contratoId "
+            + "and c.status = br.com.smartvan.enums.StatusContrato.ATIVO")
+    Optional<LocalDate> encerramentoDoContratoAnterior(@Param("alunoId") Long alunoId,
+                                                       @Param("contratoId") Long contratoId);
 
     //contrato em aviso prévio não conta: o aluno já pode contratar outro motorista
     boolean existsByAlunoIdAndStatusAndDataSolicitacaoCancelamentoIsNull(Long alunoId, StatusContrato status);

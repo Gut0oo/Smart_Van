@@ -244,7 +244,7 @@ public class ContratacaoService {
         exigirAlunoSemContratoAtivo(c.getAluno().getId());
 
         c.setStatus(StatusContrato.ATIVO);
-        c.setDataInicio(LocalDate.now(clock));
+        c.setDataInicio(dataDeInicio(c));
         contratos.saveAndFlush(c);
 
         notificacoes.notificar(c.getResponsavel().getId(), TipoNotificacao.PROPOSTA_ACEITA, "Proposta aceita",
@@ -261,6 +261,14 @@ public class ContratacaoService {
         notificacoes.notificar(c.getResponsavel().getId(), TipoNotificacao.PROPOSTA_RECUSADA, "Proposta recusada",
                 c.getMotorista().getNome() + " recusou a proposta para " + c.getAluno().getNome() + ".", c.getId());
         return ContratoResponseDTO.de(c);
+    }
+
+    //durante o aviso prévio do contrato anterior, o novo só começa quando o anterior encerrar
+    private LocalDate dataDeInicio(Contrato c) {
+        LocalDate hoje = LocalDate.now(clock);
+        return contratos.encerramentoDoContratoAnterior(c.getAluno().getId(), c.getId())
+                .filter(encerramento -> encerramento.isAfter(hoje))
+                .orElse(hoje);
     }
 
     private Contrato travarDoMotorista(Long motoristaId, Long contratoId) {

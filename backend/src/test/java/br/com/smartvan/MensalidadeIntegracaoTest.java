@@ -208,6 +208,46 @@ class MensalidadeIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void contratoQueSoComecaNoFuturoNaoGeraCobrancaAntesDoInicio() {
+        Contrato c = ativo();
+        c.setDataInicio(LocalDate.of(2026, 12, 3));
+        contratos.save(c);
+
+        publicador.publishEvent(new ContratoAtivadoEvent(c.getId()));
+        relogio.definirData(LocalDate.of(2026, 12, 2));
+        assertThat(job.gerarCompetenciaAtual()).isZero();
+        assertThat(mensalidades.doContrato(c.getId())).isEmpty();
+
+        relogio.definirData(LocalDate.of(2026, 12, 3));
+        assertThat(job.gerarCompetenciaAtual()).isEqualTo(1);
+        assertThat(unica().getVencimento()).isEqualTo(LocalDate.of(2026, 12, 3));
+    }
+
+    @Test
+    void trocaDeMotoristaNaoCobraDuasVezesNaMesmaCompetencia() {
+        //contrato anterior cobrado em 03/12 e encerrado em 20/12; o novo começa em 20/12
+        Contrato anterior = ativo();
+        fabrica.comCancelamento(anterior, TipoUsuario.RESPONSAVEL, LocalDate.of(2026, 11, 20));
+        Motorista outro = fabrica.motorista();
+        Contrato novo = fabrica.contrato(resp, aluno,
+                fabrica.atendimento(outro, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)), StatusContrato.ATIVO);
+        novo.setDataInicio(LocalDate.of(2026, 12, 20));
+        contratos.save(novo);
+
+        relogio.definirData(LocalDate.of(2026, 12, 3));
+        assertThat(job.gerarCompetenciaAtual()).isEqualTo(1);
+
+        relogio.definirData(LocalDate.of(2026, 12, 20));
+        assertThat(job.gerarCompetenciaAtual()).isZero();
+        assertThat(mensalidades.doContrato(novo.getId())).isEmpty();
+
+        relogio.definirData(LocalDate.of(2027, 1, 20));
+        assertThat(job.gerarCompetenciaAtual()).isEqualTo(1);
+        assertThat(mensalidades.doContrato(novo.getId())).extracting(Mensalidade::getVencimento)
+                .containsExactly(LocalDate.of(2027, 1, 20));
+    }
+
+    @Test
     void contratoQueEncerraAteOVencimentoNaoGeraOMesSemServico() {
         Contrato c = fabrica.comCancelamento(ativo(), TipoUsuario.RESPONSAVEL, LocalDate.of(2026, 11, 3));
         assertThat(c.getDataEncerramentoEfetivo()).isEqualTo(LocalDate.of(2026, 12, 3));

@@ -4,6 +4,8 @@ import br.com.smartvan.enums.StatusContrato;
 import br.com.smartvan.enums.TipoNotificacao;
 import br.com.smartvan.enums.TipoUsuario;
 import br.com.smartvan.model.Aluno;
+import br.com.smartvan.model.Contrato;
+import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.model.Escola;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Notificacao;
@@ -33,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FaltaIntegracaoTest extends TesteIntegracaoBase {
 
     @Autowired FaltaRepository faltas;
+    @Autowired ContratoRepository contratos;
 
     Responsavel resp;
     Aluno aluno;
@@ -88,6 +91,22 @@ class FaltaIntegracaoTest extends TesteIntegracaoBase {
 
         fazPost("/alunos/" + comContrato.getId() + "/faltas",
                 Map.of("data", relogio.hoje().plusDays(30).toString()), resp).andExpect(status().isCreated());
+
+        assertThat(notificacoesDe(motorista)).isEmpty();
+    }
+
+    @Test
+    void faltaAntesDoInicioDoContratoNaoAvisaOMotorista() throws Exception {
+        Escola escola = fabrica.escola();
+        Aluno comContrato = fabrica.aluno(resp, escola);
+        Motorista motorista = fabrica.motorista();
+        Contrato futuro = fabrica.contrato(resp, comContrato,
+                fabrica.atendimento(motorista, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)), StatusContrato.ATIVO);
+        futuro.setDataInicio(relogio.hoje().plusDays(5));
+        contratos.save(futuro);
+
+        fazPost("/alunos/" + comContrato.getId() + "/faltas", Map.of("data", amanha), resp)
+                .andExpect(status().isCreated());
 
         assertThat(notificacoesDe(motorista)).isEmpty();
     }

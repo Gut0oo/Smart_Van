@@ -12,6 +12,7 @@ import br.com.smartvan.model.Escola;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.repository.ContratoRepository;
+import br.com.smartvan.repository.MensalidadeRepository;
 import br.com.smartvan.suporte.TesteIntegracaoBase;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -49,6 +50,7 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
     private static final LocalTime SAIDA = LocalTime.of(6, 0);
 
     @Autowired ContratoRepository contratoRepository;
+    @Autowired MensalidadeRepository mensalidades;
     @Autowired EntityManagerFactory emf;
     @Autowired ApplicationEvents eventos;
 
@@ -670,9 +672,25 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
         int id = json.readTree(propor(r, novo, aluno).andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString()).get("id").asInt();
 
+        //o contrato anterior encerra em 03/12: o novo só começa nessa data, sem cobrança até lá
         fazPostSemCorpo("/contratos/" + id + "/aceitar", novo.getMotorista())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ATIVO"));
+                .andExpect(jsonPath("$.status").value("ATIVO"))
+                .andExpect(jsonPath("$.dataInicio").value("2026-12-03"));
+        assertThat(mensalidades.findAll()).isEmpty();
+        assertThat(eventos.stream(ContratoAtivadoEvent.class).count()).isEqualTo(1);
+    }
+
+    @Test
+    void contratoAnteriorJaEncerradoNaoAdiaOInicio() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Responsavel r = fabrica.responsavel();
+        Aluno aluno = fabrica.aluno(r, e);
+        fabrica.contrato(r, aluno, atendimentoCom(e, 5), StatusContrato.ENCERRADO);
+
+        aceitar(pendente(r, aluno, a), a.getMotorista()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.dataInicio").value("2026-11-03"));
     }
 
     @Test

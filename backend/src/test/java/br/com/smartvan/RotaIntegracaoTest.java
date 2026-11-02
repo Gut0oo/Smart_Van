@@ -391,6 +391,39 @@ class RotaIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void naTrocaDeMotoristaOAlunoFicaEmUmaRotaSoPorData() throws Exception {
+        Contrato anterior = contratos.findAll().stream()
+                .filter(x -> x.getResponsavel().getId().equals(resp1.getId())).findFirst().orElseThrow();
+        fabrica.comCancelamento(anterior, TipoUsuario.RESPONSAVEL, relogio.hoje());
+        LocalDate encerramento = relogio.hoje().plusDays(30);
+
+        Motorista novoMotorista = fabrica.motorista();
+        fabrica.enderecoPartida(novoMotorista);
+        fabrica.veiculo(novoMotorista, 15);
+        Atendimento novoAtendimento = fabrica.atendimento(novoMotorista, escola, LocalTime.of(7, 0), LocalTime.of(6, 0));
+        Contrato novo = fabrica.contrato(resp1, aluno1, novoAtendimento, StatusContrato.ATIVO);
+        novo.setDataInicio(encerramento);
+        contratos.save(novo);
+
+        Map<String, Object> novoNaVespera = corpo("IDA");
+        novoNaVespera.put("atendimentoId", novoAtendimento.getId());
+        novoNaVespera.put("data", encerramento.minusDays(1).toString());
+        fazPost(GERAR, novoNaVespera, novoMotorista).andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ROTA_SEM_ALUNOS"));
+
+        Map<String, Object> novoNoDia = new HashMap<>(novoNaVespera);
+        novoNoDia.put("data", encerramento.toString());
+        fazPost(GERAR, novoNoDia, novoMotorista).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.paradas[0].aluno.id").value(aluno1.getId()));
+
+        Map<String, Object> anteriorNoDia = corpo("IDA");
+        anteriorNoDia.put("data", encerramento.toString());
+        gerar(anteriorNoDia).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.paradas.length()").value(2))
+                .andExpect(jsonPath("$.paradas[0].aluno.id").value(aluno2.getId()));
+    }
+
+    @Test
     void atendimentoSemContratosDa422() throws Exception {
         Atendimento vazio = fabrica.atendimento(motorista, escola, LocalTime.of(13, 0), LocalTime.of(12, 0));
         Map<String, Object> c = corpo("IDA");
