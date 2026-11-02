@@ -12,3 +12,7 @@ spring:
 smartvan:
   agendador:
     habilitado: false  # os testes chamam os jobs direto
+    mensalidades:
+      cron: "0 0 6 * * *"
+  mensalidade:
+    dia-vencimento: 10

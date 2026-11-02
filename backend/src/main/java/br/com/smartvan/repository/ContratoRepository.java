@@ -38,6 +38,9 @@ public interface ContratoRepository extends JpaRepository<Contrato, Long> {
             + MAIS_RECENTES_PRIMEIRO)
     List<Contrato> doUsuarioComStatus(@Param("usuarioId") Long usuarioId, @Param("status") StatusContrato status);
 
+    @Query("select c.id from Contrato c where c.status = :status order by c.id")
+    List<Long> idsComStatus(@Param("status") StatusContrato status);
+
     long countByAtendimentoIdAndStatus(Long atendimentoId, StatusContrato status);
 
     boolean existsByAlunoIdAndMotoristaIdAndStatus(Long alunoId, Long motoristaId, StatusContrato status);
