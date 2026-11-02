@@ -15,6 +15,7 @@
 - Papéis: `RESPONSAVEL`, `MOTORISTA`, `ADMINISTRADOR` (tipo do usuário). Rota de outro papel → 403.
 - Dinheiro: número decimal com 2 casas (`350.00`).
 - Listas não são paginadas (volume acadêmico).
+- A aplicação exige a variável de ambiente `DB_PASSWORD`. Sem ela, não sobe e informa o motivo.
 
 ### Erros (todas as respostas de erro)
 
