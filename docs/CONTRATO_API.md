@@ -66,6 +66,8 @@ UsuarioResumo { id, nome, telefone }
 | PUT | `/motorista/escolas` | MOTORISTA | `{ atendimentos: { escolaId, horarioInicioAula, horarioSaidaMotorista, horarioSaidaEscola }[] }` → `Atendimento[]` |
 | GET | `/motorista/escolas` | MOTORISTA | → `Atendimento[]` |
 | PUT | `/motorista/endereco-partida` | MOTORISTA | `Endereco` → `EnderecoResp` |
+| GET | `/admin/motoristas/pendentes` | ADMINISTRADOR | → `Usuario[]` dos motoristas `PENDENTE` ou `EM_ANALISE` |
+| POST | `/admin/motoristas/{id}/validacao` | ADMINISTRADOR | `{ decisao: VALIDADO\|REJEITADO, parecer? }` → `Usuario` |
 | GET | `/motorista/perfil` | MOTORISTA | → `{ usuario: Usuario, enderecoPartida?: EnderecoResp, veiculos: Veiculo[], escolas: EscolaResumo[] }` |
 
 ```ts
@@ -77,7 +79,8 @@ Atendimento { id, escola: Escola, horarioInicioAula, horarioSaidaMotorista, hora
 
 Regras:
 - O cadastro é o do projeto original (`POST /usuarios`): conta nasce `PENDENTE` e motorista com `statusValidacao = PENDENTE`.
-  A validação do motorista por administrador está fora do escopo desta entrega.
+- Validação do motorista: motorista inexistente → **404** `NAO_ENCONTRADO`; decisão diferente de `VALIDADO` ou `REJEITADO` → **400** `VALIDACAO`; motorista já avaliado → **409** `MOTORISTA_JA_AVALIADO`; rejeitar sem parecer → **422** `PARECER_OBRIGATORIO`. Grava `validacoes` e `auditorias` (acao `VALIDACAO_MOTORISTA`) e notifica o motorista (tipos `PROPOSTA_ACEITA`, título "Cadastro aprovado", e `PROPOSTA_RECUSADA`, título "Cadastro rejeitado").
+- **Atenção:** o cadastro público (`POST /usuarios`) aceita `tipo = ADMINISTRADOR`, então qualquer pessoa pode criar um administrador e aprovar motoristas. Isso **só serve para uso acadêmico e não serve para produção**.
 - Placa duplicada → **409** `PLACA_JA_CADASTRADA`.
 - Aluno: grava `alunos`, `alunos_enderecos` (tipo `RESIDENCIAL`, principal) e `responsaveis_alunos` (`status_vinculo ATIVO`, `acompanha_rota true`).
 - Atendimento: motorista + escola + horário de início da aula + horário de saída do motorista + horário de saída da
