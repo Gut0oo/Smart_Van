@@ -20,7 +20,7 @@ Antes de qualquer tarefa, leia:
 
 ```
 backend/src/main/java/br/com/smartvan/
-  config/       configurações (@Configuration): senha, segurança, relógio, agendador, mapas
+  config/       configurações (@Configuration): senha, interceptor, relógio, agendador, mapas
   controller/   @RestController — só recebe, valida e delega
   service/      regras de negócio, agendadores (XxxJob) e listeners de evento
   repository/   Spring Data JPA (um repository por entidade, com todas as consultas dela)
