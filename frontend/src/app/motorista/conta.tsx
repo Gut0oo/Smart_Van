@@ -6,7 +6,7 @@ import { TelaConta } from '@/components/TelaConta';
 import { Aviso, Botao, Carregando, Cartao, Linha, Secao, s } from '@/components/ui';
 import { api, Usuario } from '@/services/api';
 import { useAuth } from '@/services/auth';
-import { hora } from '@/services/formato';
+import { dinheiro, hora } from '@/services/formato';
 import { Atendimento, Endereco, Veiculo } from '@/services/tipos';
 import { useCarregar } from '@/services/useCarregar';
 
@@ -75,6 +75,7 @@ export default function ContaMotorista() {
                 <Linha rotulo="Sua saída (ida)" valor={hora(a.horarioSaidaMotorista)} />
                 <Linha rotulo="Saída da escola (volta)" valor={hora(a.horarioSaidaEscola)} />
                 <Linha rotulo="Chegar até" valor={hora(a.tetoChegada)} />
+                <Linha rotulo="Preço mensal" valor={a.valorMensal != null ? dinheiro(a.valorMensal) : 'não informado'} />
               </Cartao>
             ))}
             <Botao titulo="Editar escolas e horários" secundario aoTocar={() => router.push('/config/turnos')} />

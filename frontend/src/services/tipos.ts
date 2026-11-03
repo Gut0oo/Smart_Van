@@ -36,6 +36,7 @@ export type Atendimento = {
   horarioInicioAula: string;
   horarioSaidaMotorista: string;
   horarioSaidaEscola?: string | null;
+  valorMensal?: number | string | null;
   tetoChegada: string;
 };
 
@@ -47,6 +48,7 @@ export type AtendimentoBusca = {
   cidade: string;
   horarioInicioAula: string;
   horarioSaidaMotorista: string;
+  valorMensal?: number | string | null;
   vagasRestantes: number;
   contratosAtivos?: number;
   capacidade?: number;
@@ -72,7 +74,7 @@ export type Contrato = {
   responsavel: UsuarioResumo;
   motorista: UsuarioResumo;
   escola?: EscolaResumo | null;
-  atendimento?: { id: number; horarioInicioAula: string; horarioSaidaMotorista: string } | null;
+  atendimento?: { id: number; horarioInicioAula: string; horarioSaidaMotorista: string; valorMensal?: number | string | null } | null;
   cancelamento?: { dataSolicitacao: string; dataEncerramentoEfetivo: string; solicitante: string; motivo: string } | null;
 };
 

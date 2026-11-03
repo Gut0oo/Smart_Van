@@ -70,6 +70,9 @@ export default function ContratoScreen() {
               />
             )}
             <Linha rotulo="Mensalidade" valor={dinheiro(c.valorMensal)} />
+            {c.atendimento?.valorMensal != null && (
+              <Linha rotulo="Preço do motorista" valor={dinheiro(c.atendimento.valorMensal)} />
+            )}
             <Linha rotulo={c.status === 'PENDENTE' ? 'Proposta em' : 'Início'} valor={data(c.dataInicio)} />
           </Cartao>
 
@@ -90,6 +93,17 @@ export default function ContratoScreen() {
 
           {erroAcao && <Aviso texto={erroAcao} erro />}
 
+          {ehMotorista && c.status === 'PENDENTE' && c.atendimento?.valorMensal != null && (
+            <Aviso
+              texto={
+                Number(c.valorMensal) < Number(c.atendimento.valorMensal)
+                  ? `Proposta ${dinheiro(Number(c.atendimento.valorMensal) - Number(c.valorMensal))} abaixo do seu preço. Aceite ou recuse.`
+                  : Number(c.valorMensal) > Number(c.atendimento.valorMensal)
+                    ? 'Proposta acima do seu preço.'
+                    : 'Proposta no seu preço.'
+              }
+            />
+          )}
           {ehMotorista && c.status === 'PENDENTE' && (
             <View style={{ gap: 8, marginBottom: 24 }}>
               <Botao

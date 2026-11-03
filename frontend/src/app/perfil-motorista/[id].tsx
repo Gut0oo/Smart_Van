@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Aviso, Botao, Campo, Carregando, Cartao, Opcoes, Secao, Selo, Tela, cores, s } from '@/components/ui';
 import { api } from '@/services/api';
-import { hora } from '@/services/formato';
+import { dinheiro, hora } from '@/services/formato';
 import { Aluno, Contrato, MotoristaBusca } from '@/services/tipos';
 import { mensagemDeErro, useCarregar } from '@/services/useCarregar';
 
@@ -30,6 +30,14 @@ export default function PerfilMotorista() {
   const atendimento = m?.atendimentos.find((a) => a.id === atendimentoId);
   const aluno = dados?.alunos.find((a) => String(a.id) === alunoId);
   const valorNumero = Number(valor.replace(',', '.'));
+  const piso = atendimento?.valorMensal != null ? Number(atendimento.valorMensal) : null;
+
+  // Ao escolher o horário, o valor já vem com o preço do motorista; o responsável pode mudar para negociar.
+  function escolherHorario(id: number) {
+    setAtendimentoId(id);
+    const a = m?.atendimentos.find((x) => x.id === id);
+    if (a?.valorMensal != null) setValor(Number(a.valorMensal).toFixed(2).replace('.', ','));
+  }
   const outraEscola = atendimento && aluno && atendimento.escola.id !== aluno.escola.id;
 
   async function enviar() {
@@ -105,12 +113,15 @@ export default function PerfilMotorista() {
               const lotado = a.vagasRestantes <= 0;
               const ativo = a.id === atendimentoId;
               return (
-                <TouchableOpacity key={a.id} disabled={lotado} onPress={() => setAtendimentoId(a.id)}>
+                <TouchableOpacity key={a.id} disabled={lotado} onPress={() => escolherHorario(a.id)}>
                   <View style={[styles.atendimento, ativo && styles.atendimentoAtivo, lotado && { opacity: 0.5 }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.titulo, ativo && { color: '#fff' }]}>{a.escola.nome}</Text>
                       <Text style={[s.pequeno, ativo && { color: '#ddd' }]}>
                         {a.cidade} · aula às {hora(a.horarioInicioAula)} · sai às {hora(a.horarioSaidaMotorista)}
+                      </Text>
+                      <Text style={[s.pequeno, ativo && { color: '#ddd' }]}>
+                        {a.valorMensal != null ? `Preço do motorista: ${dinheiro(a.valorMensal)}/mês` : 'Preço a combinar'}
                       </Text>
                       {a.capacidade != null && (
                         <Text style={[s.pequeno, ativo && { color: '#ddd' }]}>
@@ -139,8 +150,19 @@ export default function PerfilMotorista() {
               />
             )}
             {outraEscola && <Aviso texto="Esse aluno estuda em outra escola. Escolha um horário da escola dele." erro />}
+            {piso != null && valorNumero > 0 && (
+              <Aviso
+                texto={
+                  valorNumero === piso
+                    ? `Proposta no preço do motorista (${dinheiro(piso)}).`
+                    : valorNumero < piso
+                      ? `Proposta abaixo do preço do motorista (${dinheiro(piso)}): ele vai avaliar se aceita.`
+                      : `Proposta acima do preço do motorista (${dinheiro(piso)}).`
+                }
+              />
+            )}
             <Campo
-              rotulo="Valor mensal combinado (R$)"
+              rotulo={piso != null ? 'Valor mensal (mude para negociar)' : 'Valor mensal proposto (R$)'}
               placeholder="350,00"
               keyboardType="decimal-pad"
               value={valor}

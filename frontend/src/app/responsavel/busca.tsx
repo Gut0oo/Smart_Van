@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { SeletorEscola } from '@/components/formularios';
 import { Aviso, Botao, Campo, Cartao, Selo, Tela, cores, s } from '@/components/ui';
 import { api } from '@/services/api';
-import { hora, horaValida } from '@/services/formato';
+import { dinheiro, hora, horaValida } from '@/services/formato';
 import { MotoristaBusca } from '@/services/tipos';
 import { mensagemDeErro } from '@/services/useCarregar';
 
@@ -92,6 +92,7 @@ export default function BuscaScreen() {
               {m.atendimentos.map((a) => (
                 <Text key={a.id} style={styles.tag}>
                   {a.escola.nome.toUpperCase()} · AULA {hora(a.horarioInicioAula)}
+                  {a.valorMensal != null ? ` · ${dinheiro(a.valorMensal)}` : ''}
                 </Text>
               ))}
             </View>
