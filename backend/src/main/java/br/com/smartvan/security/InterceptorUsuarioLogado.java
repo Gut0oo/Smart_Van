@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -41,7 +42,9 @@ public class InterceptorUsuarioLogado implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         //o erro original já foi tratado na requisição que o causou
-        if (request.getDispatcherType() == DispatcherType.ERROR || ehPublica(request)) {
+        //pré-voo de CORS não leva o header: quem decide é o CorsConfig
+        if (request.getDispatcherType() == DispatcherType.ERROR || CorsUtils.isPreFlightRequest(request)
+                || ehPublica(request)) {
             return true;
         }
         Usuario usuario = carregar(request.getHeader(HEADER));

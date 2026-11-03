@@ -13,6 +13,8 @@ spring:
     show-sql: true
 
 smartvan:
+  cors:
+    origens: ${CORS_ORIGENS:http://localhost:8081,http://localhost:19006}   # app web (Expo) em desenvolvimento
   agendador:
     habilitado: true   # liga os @Scheduled (AgendadorConfig); nos testes fica false
     mensalidades:
