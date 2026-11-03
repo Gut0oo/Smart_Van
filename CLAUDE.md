@@ -8,7 +8,7 @@ Antes de qualquer tarefa, leia:
 
 ## Escopo
 
-- Só **back-end** (`backend/`). Não mexer em `frontend/`.
+- Back-end em `backend/` e app em `frontend/` (Expo Router; telas em `src/app/`, chamadas à API em `src/services/api.ts`). No app, manter o estilo visual das telas existentes e instalar pacotes só com `npx expo install`.
 - Não criar nem alterar Dockerfile, docker-compose, Kubernetes ou CI.
 - Não introduzir Flyway nem scripts SQL: o banco segue o mapeamento das entidades (`ddl-auto: update`).
   Criar ou alterar uma entidade **muda o banco** de quem rodar o projeto; informe toda mudança de entidade
