@@ -2,6 +2,9 @@ package br.com.smartvan.maps;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,6 +36,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 //nunca chama o Google: o RestClient aponta para um MockRestServiceServer ou para um socket local
+@ExtendWith(OutputCaptureExtension.class)
 class GoogleMapsProviderTest {
 
     private static final String CHAVE = "chave-de-teste-123";
@@ -194,6 +198,68 @@ class GoogleMapsProviderTest {
                 .andRespond(withSuccess("{\"status\":\"ZERO_RESULTS\",\"results\":[]}", MediaType.APPLICATION_JSON));
 
         assertThat(provider.geocodificar("endereco que nao existe")).isEmpty();
+    }
+
+    @Test
+    void geocodificacaoRecusadaRegistraStatusEMensagemSemAChave(CapturedOutput saida) {
+        //caso real: projeto do Google sem faturamento
+        servidor.expect(requestTo(containsString(GoogleMapsProvider.URL_GEOCODING)))
+                .andRespond(withSuccess("""
+                        {"status":"REQUEST_DENIED",
+                         "error_message":"You must enable Billing on the Google Cloud Project. key=%s"}
+                        """.formatted(CHAVE), MediaType.APPLICATION_JSON));
+
+        assertThat(provider.geocodificar("Rua X, 1")).isEmpty();
+
+        assertThat(saida.getAll()).contains("WARN", "REQUEST_DENIED", "You must enable Billing", "key=***")
+                .doesNotContain(CHAVE);
+    }
+
+    @Test
+    void enderecoNaoEncontradoNaoViraAvisoDeFalha(CapturedOutput saida) {
+        servidor.expect(requestTo(containsString(GoogleMapsProvider.URL_GEOCODING)))
+                .andRespond(withSuccess("{\"status\":\"ZERO_RESULTS\",\"results\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(provider.geocodificar("Rua Inexistente, 0")).isEmpty();
+
+        assertThat(saida.getAll()).contains("ZERO_RESULTS").doesNotContain("WARN").doesNotContain(CHAVE);
+    }
+
+    @Test
+    void erroHttpDaRotaRegistraStatusEMensagemDoGoogleSemAChave(CapturedOutput saida) {
+        servidor.expect(requestTo(GoogleMapsProvider.URL_ROTAS))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("""
+                        {"error":{"code":403,"status":"PERMISSION_DENIED",
+                         "message":"Routes API has not been used in project 123 for key %s"}}
+                        """.formatted(CHAVE)));
+
+        assertThatThrownBy(() -> provider.otimizarRota(PARTIDA, UMA_PARADA, DESTINO, DEPOIS))
+                .isInstanceOf(MapsIndisponivelException.class);
+
+        assertThat(saida.getAll()).contains("WARN", "HTTP 403", "Routes API has not been used", "for key ***")
+                .doesNotContain(CHAVE);
+    }
+
+    @Test
+    void falhaDeRedeRegistraSoOTipoSemAUrlComAChave(CapturedOutput saida) {
+        servidor.expect(requestTo(containsString(GoogleMapsProvider.URL_GEOCODING)))
+                .andRespond(withException(new IOException("falha em ?key=" + CHAVE)));
+
+        assertThatThrownBy(() -> provider.geocodificar("Rua X, 1")).isInstanceOf(MapsIndisponivelException.class);
+
+        assertThat(saida.getAll()).contains("WARN", "Falha ao geocodificar no Google: ResourceAccessException")
+                .doesNotContain(CHAVE);
+    }
+
+    @Test
+    void respostaDaRotaQueNaoDaParaUsarTambemVaiParaOLog(CapturedOutput saida) {
+        servidor.expect(requestTo(GoogleMapsProvider.URL_ROTAS))
+                .andRespond(withSuccess("{\"routes\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> provider.otimizarRota(PARTIDA, UMA_PARADA, DESTINO, DEPOIS))
+                .isInstanceOf(MapsIndisponivelException.class);
+
+        assertThat(saida.getAll()).contains("WARN", "Google não devolveu rota").doesNotContain(CHAVE);
     }
 
     @Test

@@ -1,8 +1,10 @@
 package br.com.smartvan.maps;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -19,8 +21,10 @@ import java.util.Optional;
 /**
  * Google Routes API (otimização de paradas) e Geocoding API. A chave vem só da configuração.
  * Toda falha vira {@link MapsIndisponivelException} sem a causa e sem a mensagem original, porque elas podem trazer
- * a URL com a chave: a chave nunca vai para log nem para mensagem de exceção.
+ * a URL com a chave: a chave nunca vai para log nem para mensagem de exceção. O log registra o status e a mensagem
+ * do Google (com a chave trocada por ***, se aparecer), para a recusa não passar em silêncio.
  */
+@Slf4j
 public class GoogleMapsProvider implements MapsProvider {
 
     public static final String URL_ROTAS = "https://routes.googleapis.com/directions/v2:computeRoutes";
@@ -64,7 +68,15 @@ public class GoogleMapsProvider implements MapsProvider {
                     .uri(urlGeocoding + "?address={a}&key={k}&region=br", enderecoCompleto, chave)
                     .retrieve().body(String.class);
             JsonNode raiz = json.readTree(corpo);
-            if (!"OK".equals(raiz.path("status").asString(""))) {
+            String status = raiz.path("status").asString("");
+            if (!"OK".equals(status)) {
+                //endereço não encontrado é resultado normal; o resto é recusa ou problema de configuração
+                if ("ZERO_RESULTS".equals(status)) {
+                    log.info("Google não encontrou o endereço (ZERO_RESULTS).");
+                } else {
+                    log.warn("Google recusou a geocodificação: status {}, mensagem: {}", status,
+                            semChave(raiz.path("error_message").asString("")));
+                }
                 return Optional.empty();
             }
             JsonNode local = raiz.path("results").path(0).path("geometry").path("location");
@@ -74,6 +86,7 @@ public class GoogleMapsProvider implements MapsProvider {
             return Optional.of(new Coordenada(new BigDecimal(local.get("lat").asString()),
                     new BigDecimal(local.get("lng").asString())));
         } catch (Exception e) {
+            log.warn("Falha ao geocodificar no Google: {}", descrever(e));
             throw new MapsIndisponivelException("Falha ao geocodificar no Google (" + e.getClass().getSimpleName() + ").");
         }
     }
@@ -106,10 +119,37 @@ public class GoogleMapsProvider implements MapsProvider {
                     .retrieve().body(String.class);
             return interpretar(json.readTree(resposta), paradas.size());
         } catch (MapsIndisponivelException e) {
+            //resposta do Google que não dá para usar; a mensagem é nossa e não tem a chave
+            log.warn("Resposta do Google para a rota não usada: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
+            log.warn("Falha ao otimizar rota no Google: {}", descrever(e));
             throw new MapsIndisponivelException("Falha ao otimizar rota no Google (" + e.getClass().getSimpleName() + ").");
         }
+    }
+
+    //erro HTTP: status e mensagem do Google; outra falha: só o tipo, porque a mensagem pode trazer a URL com a chave
+    private String descrever(Exception e) {
+        if (e instanceof RestClientResponseException resposta) {
+            return "HTTP " + resposta.getStatusCode().value() + ", mensagem: "
+                    + semChave(mensagemDoGoogle(resposta.getResponseBodyAsString()));
+        }
+        return e.getClass().getSimpleName();
+    }
+
+    //a Routes API devolve { error: { message } } e a Geocoding API, { error_message }
+    private String mensagemDoGoogle(String corpo) {
+        try {
+            JsonNode raiz = json.readTree(corpo);
+            JsonNode mensagem = raiz.path("error").path("message");
+            return mensagem.isMissingNode() ? raiz.path("error_message").asString("") : mensagem.asString("");
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String semChave(String texto) {
+        return texto == null || chave == null || chave.isEmpty() ? texto : texto.replace(chave, "***");
     }
 
     private RotaOtimizada interpretar(JsonNode raiz, int totalParadas) {
