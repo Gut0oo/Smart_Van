@@ -249,6 +249,7 @@ public class Fabrica {
         a.setHorarioInicioAula(inicioAula);
         a.setHorarioSaidaMotorista(saidaMotorista);
         a.setHorarioSaidaEscola(LocalTime.of(12, 30));
+        a.setValorMensal(new BigDecimal("300.00"));
         return atendimentos.save(a);
     }
 

@@ -11,6 +11,7 @@ import br.com.smartvan.model.Contrato;
 import br.com.smartvan.model.Escola;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
+import br.com.smartvan.repository.AtendimentoRepository;
 import br.com.smartvan.repository.ContratoRepository;
 import br.com.smartvan.repository.MensalidadeRepository;
 import br.com.smartvan.suporte.TesteIntegracaoBase;
@@ -51,6 +52,7 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
 
     @Autowired ContratoRepository contratoRepository;
     @Autowired MensalidadeRepository mensalidades;
+    @Autowired AtendimentoRepository atendimentoRepository;
     @Autowired EntityManagerFactory emf;
     @Autowired ApplicationEvents eventos;
 
@@ -596,13 +598,83 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void propostaSemValorUsaOPisoDoAtendimento() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Responsavel r = fabrica.responsavel();
+        Aluno aluno = fabrica.aluno(r, e);
+
+        fazPost("/contratos", Map.of("atendimentoId", a.getId(), "alunoId", aluno.getId()), r)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(content().string(containsString("\"valorMensal\":300.00")))
+                .andExpect(jsonPath("$.atendimento.valorMensal").value(300.0));
+    }
+
+    @Test
+    void responsavelPodeProporQualquerValorEOMotoristaDecide() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Responsavel r = fabrica.responsavel();
+        Aluno abaixo = fabrica.aluno(r, e);
+        Aluno acima = fabrica.aluno(r, e);
+
+        int id = json.readTree(fazPost("/contratos",
+                        Map.of("atendimentoId", a.getId(), "alunoId", abaixo.getId(), "valorMensal", 250), r)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.valorMensal").value(250.0))
+                .andExpect(jsonPath("$.atendimento.valorMensal").value(300.0))
+                .andReturn().getResponse().getContentAsString()).get("id").asInt();
+        fazPost("/contratos", Map.of("atendimentoId", a.getId(), "alunoId", acima.getId(), "valorMensal", 400), r)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.valorMensal").value(400.0));
+
+        //abaixo do piso só vale se o motorista aceitar
+        fazPostSemCorpo("/contratos/" + id + "/aceitar", a.getMotorista()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ATIVO"))
+                .andExpect(jsonPath("$.valorMensal").value(250.0));
+    }
+
+    @Test
+    void propostaSemValorEmHorarioSemPisoDevolve422() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Atendimento antigo = atendimentoRepository.findById(a.getId()).orElseThrow();
+        antigo.setValorMensal(null);
+        atendimentoRepository.save(antigo);
+        Responsavel r = fabrica.responsavel();
+        Aluno aluno = fabrica.aluno(r, e);
+
+        fazPost("/contratos", Map.of("atendimentoId", a.getId(), "alunoId", aluno.getId()), r)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("VALOR_OBRIGATORIO"));
+        fazPost("/contratos", Map.of("atendimentoId", a.getId(), "alunoId", aluno.getId(), "valorMensal", 280), r)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.atendimento.valorMensal").doesNotExist());
+    }
+
+    @Test
+    void buscaEPerfilMostramOPisoDeCadaAtendimento() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Responsavel r = responsavelComAluno(e);
+
+        fazGet("/motoristas?escolaId=" + e.getId(), r)
+                .andExpect(jsonPath("$[0].atendimentos[0].valorMensal").value(300.0))
+                .andExpect(content().string(containsString("\"valorMensal\":300.00")));
+        fazGet("/motoristas/" + a.getMotorista().getId(), r)
+                .andExpect(jsonPath("$.atendimentos[0].valorMensal").value(300.0));
+    }
+
+    @Test
     void propostaComCamposInvalidosDevolve400() throws Exception {
         Responsavel r = fabrica.responsavel();
         fazPost("/contratos", Map.of(), r).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACAO"))
                 .andExpect(jsonPath("$.campos.atendimentoId").exists())
                 .andExpect(jsonPath("$.campos.alunoId").exists())
-                .andExpect(jsonPath("$.campos.valorMensal").exists());
+                .andExpect(jsonPath("$.campos.valorMensal").doesNotExist());
         fazPost("/contratos", Map.of("atendimentoId", 1, "alunoId", 1, "valorMensal", 0), r)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos.valorMensal").exists());
@@ -1049,7 +1121,7 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
 
     private Map<String, Object> itemAtendimento(Escola e, String aula, String saida) {
         return Map.of("escolaId", e.getId(), "horarioInicioAula", aula, "horarioSaidaMotorista", saida,
-                "horarioSaidaEscola", "12:00");
+                "horarioSaidaEscola", "12:00", "valorMensal", 300);
     }
 
     @Test

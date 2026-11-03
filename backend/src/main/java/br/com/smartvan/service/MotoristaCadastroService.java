@@ -103,7 +103,7 @@ public class MotoristaCadastroService {
         List<AtendimentoRequestDTO> distintos = novos.stream().distinct().toList();
         exigirHorariosDiferentes(distintos);
 
-        //o horário de volta não identifica o turno: mudar só ele não pode impedir a alteração de quem tem contrato
+        //o horário de volta e o piso não identificam o turno: mudar só eles não pode impedir a alteração de quem tem contrato
         Map<Chave, AtendimentoRequestDTO> aCriar = new LinkedHashMap<>();
         distintos.forEach(req -> aCriar.put(
                 new Chave(req.escolaId(), req.horarioInicioAula(), req.horarioSaidaMotorista()), req));
@@ -115,6 +115,7 @@ public class MotoristaCadastroService {
                 aRemover.add(a);
             } else {
                 a.setHorarioSaidaEscola(mantido.horarioSaidaEscola());
+                a.setValorMensal(mantido.valorMensal());
             }
         }
         remover(aRemover);
@@ -126,6 +127,7 @@ public class MotoristaCadastroService {
             a.setHorarioInicioAula(req.horarioInicioAula());
             a.setHorarioSaidaMotorista(req.horarioSaidaMotorista());
             a.setHorarioSaidaEscola(req.horarioSaidaEscola());
+            a.setValorMensal(req.valorMensal());
             return a;
         }).toList());
         return listarAtendimentos(motoristaId);

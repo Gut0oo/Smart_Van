@@ -8,7 +8,6 @@ import br.com.smartvan.model.Escola;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -24,7 +23,8 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
 
     public record AtendimentoResumo(Long id,
                                     @JsonFormat(pattern = "HH:mm") LocalTime horarioInicioAula,
-                                    @JsonFormat(pattern = "HH:mm") LocalTime horarioSaidaMotorista) {
+                                    @JsonFormat(pattern = "HH:mm") LocalTime horarioSaidaMotorista,
+                                    BigDecimal valorMensal) {
     }
 
     public record Cancelamento(LocalDate dataSolicitacao, LocalDate dataEncerramentoEfetivo,
@@ -35,12 +35,12 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
         Atendimento a = c.getAtendimento();
         Escola escola = a != null ? a.getEscola() : c.getAluno().getEscola();
         //o contrato recém-criado ainda tem o valor como veio no pedido; o da API tem sempre 2 casas
-        BigDecimal valorMensal = c.getValorMensal().setScale(2, RoundingMode.HALF_UP);
-        return new ContratoResponseDTO(c.getId(), c.getStatus(), valorMensal, c.getDataInicio(),
+        return new ContratoResponseDTO(c.getId(), c.getStatus(), Dinheiro.duasCasas(c.getValorMensal()), c.getDataInicio(),
                 AlunoResumoResponseDTO.de(c.getAluno()), UsuarioResumoResponseDTO.de(c.getResponsavel()),
                 UsuarioResumoResponseDTO.de(c.getMotorista()),
                 escola == null ? null : EscolaResumoResponseDTO.de(escola),
-                a == null ? null : new AtendimentoResumo(a.getId(), a.getHorarioInicioAula(), a.getHorarioSaidaMotorista()),
+                a == null ? null : new AtendimentoResumo(a.getId(), a.getHorarioInicioAula(), a.getHorarioSaidaMotorista(),
+                        Dinheiro.duasCasas(a.getValorMensal())),
                 c.getDataSolicitacaoCancelamento() == null ? null
                         : new Cancelamento(c.getDataSolicitacaoCancelamento(), c.getDataEncerramentoEfetivo(),
                                 c.getSolicitanteCancelamento(), c.getMotivoCancelamento()));

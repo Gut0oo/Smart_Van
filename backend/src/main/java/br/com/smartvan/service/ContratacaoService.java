@@ -31,6 +31,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -209,6 +210,12 @@ public class ContratacaoService {
         if (motorista.getStatusValidacao() != StatusMotorista.VALIDADO) {
             throw RegraNegocioException.regra("MOTORISTA_NAO_VALIDADO", "O motorista ainda não foi validado.");
         }
+        //sem valor, a proposta é no piso; com valor, o responsável negocia e o motorista decide no aceite
+        BigDecimal valorMensal = req.valorMensal() != null ? req.valorMensal() : atendimento.getValorMensal();
+        if (valorMensal == null) {
+            throw RegraNegocioException.regra("VALOR_OBRIGATORIO",
+                    "Este horário não tem preço definido: informe o valor da proposta.");
+        }
         exigirVaga(atendimento);
         //sempre depois do atendimento, na mesma ordem do aceite: duas travas nunca se esperam em círculo
         alunos.travar(aluno.getId());
@@ -225,7 +232,7 @@ public class ContratacaoService {
         c.setMotorista(motorista);
         c.setAluno(aluno);
         c.setAtendimento(atendimento);
-        c.setValorMensal(req.valorMensal());
+        c.setValorMensal(valorMensal);
         c.setDataInicio(LocalDate.now(clock));
         c.setStatus(StatusContrato.PENDENTE);
         c = contratos.save(c);

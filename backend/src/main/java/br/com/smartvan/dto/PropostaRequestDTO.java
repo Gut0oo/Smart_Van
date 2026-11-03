@@ -6,8 +6,9 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
+/** Sem {@code valorMensal}, a proposta é no piso do atendimento; com ele, vale qualquer valor positivo. */
 public record PropostaRequestDTO(
         @NotNull Long atendimentoId,
         @NotNull Long alunoId,
-        @NotNull @Positive @Digits(integer = 8, fraction = 2) BigDecimal valorMensal) {
+        @Positive @Digits(integer = 8, fraction = 2) BigDecimal valorMensal) {
 }

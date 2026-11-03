@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalTime;
 
 //turno que o motorista atende numa escola; um motorista pode ter vários por escola
@@ -36,6 +37,10 @@ public class Atendimento {
     //horário em que a van sai da escola na volta; aceita nulo só para não quebrar turno cadastrado antes deste campo
     @Column(name = "horario_saida_escola")
     private LocalTime horarioSaidaEscola;
+
+    //preço fixo (piso) do motorista neste horário; aceita nulo só para não quebrar turno cadastrado antes deste campo
+    @Column(name = "valor_mensal", precision = 10, scale = 2)
+    private BigDecimal valorMensal;
 
     //horário limite de chegada à escola: início da aula menos a margem (smartvan.rota.margem-chegada-minutos)
     public LocalTime tetoChegada(int margemMinutos) {

@@ -17,7 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,7 +59,7 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
 
     private Map<String, Object> atendimento(Long escolaId, String inicioAula, String saida) {
         return Map.of("escolaId", escolaId, "horarioInicioAula", inicioAula, "horarioSaidaMotorista", saida,
-                "horarioSaidaEscola", "12:00");
+                "horarioSaidaEscola", "12:00", "valorMensal", 320.5);
     }
 
     private Map<String, Object> atendimentos(Object... itens) {
@@ -347,6 +349,38 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
         fazPut("/motorista/escolas", atendimentos(atendimento(escola, "07:00", "06:00")), m)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].horarioSaidaEscola").value("12:00"));
+    }
+
+    @Test
+    void pisoDoAtendimentoEObrigatorioPositivoEVemComDuasCasas() throws Exception {
+        Long escola = fabrica.escola().getId();
+        Motorista m = fabrica.motorista();
+        Map<String, Object> semPiso = Map.of("escolaId", escola, "horarioInicioAula", "07:00",
+                "horarioSaidaMotorista", "06:00", "horarioSaidaEscola", "12:00");
+        Map<String, Object> pisoZero = Map.of("escolaId", escola, "horarioInicioAula", "07:00",
+                "horarioSaidaMotorista", "06:00", "horarioSaidaEscola", "12:00", "valorMensal", 0);
+
+        fazPut("/motorista/escolas", atendimentos(semPiso), m).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACAO"))
+                .andExpect(jsonPath("$.campos['atendimentos[0].valorMensal']").exists());
+        fazPut("/motorista/escolas", atendimentos(pisoZero), m).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos['atendimentos[0].valorMensal']").exists());
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola, "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"valorMensal\":320.50")));
+        fazGet("/motorista/escolas", m).andExpect(jsonPath("$[0].valorMensal").value(320.5));
+    }
+
+    @Test
+    void mudarSoOPisoMantemOAtendimento() throws Exception {
+        Escola escola = fabrica.escola();
+        Motorista m = fabrica.motorista();
+        Long id = fabrica.atendimento(m, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)).getId();
+
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola.getId(), "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].valorMensal").value(320.5));
     }
 
     @Test
