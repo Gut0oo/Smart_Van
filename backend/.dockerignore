@@ -1,0 +1,8 @@
+# Envia ao build apenas os arquivos necessários para compilar e testar a API.
+*
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/**
+!src/
+!src/**
