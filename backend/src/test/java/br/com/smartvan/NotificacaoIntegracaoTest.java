@@ -93,7 +93,7 @@ class NotificacaoIntegracaoTest extends TesteIntegracaoBase {
     // ---------------------------------------------------------------- rotas
 
     @Test
-    void rotasSemTokenDao401() throws Exception {
+    void rotasSemIdentificacaoDao401() throws Exception {
         fazGet("/notificacoes").andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("NAO_AUTENTICADO"));
         fazGet("/notificacoes/nao-lidas/contagem").andExpect(status().isUnauthorized())

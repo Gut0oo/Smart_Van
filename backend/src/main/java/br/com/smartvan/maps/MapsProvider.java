@@ -12,7 +12,10 @@ import java.util.Optional;
  */
 public interface MapsProvider {
 
-    /** Endereço em texto ("Rua X, 123, Bairro, Cidade - UF, CEP") vira coordenada, se encontrada. */
+    /**
+     * Endereço em texto ("Rua X, 123, Bairro, Cidade - UF, CEP") vira coordenada, se encontrada.
+     * @throws MapsIndisponivelException se o serviço falhar
+     */
     Optional<Coordenada> geocodificar(String enderecoCompleto);
 
     /**

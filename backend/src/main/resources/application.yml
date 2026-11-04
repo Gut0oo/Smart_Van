@@ -5,7 +5,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/smartvan}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:Password123!}
+    password: ${DB_PASSWORD}   # sem valor padrão: sem a variável, a aplicação não sobe (BancoConfig)
 
   jpa:
     hibernate:
@@ -13,13 +13,15 @@ spring:
     show-sql: true
 
 smartvan:
+  cors:
+    origens: ${CORS_ORIGENS:http://localhost:8081,http://localhost:19006}   # app web (Expo) em desenvolvimento
   agendador:
     habilitado: true   # liga os @Scheduled (AgendadorConfig); nos testes fica false
     mensalidades:
       cron: "0 0 6 * * *"   # todo dia às 06:00, fuso de São Paulo
     cancelamentos:
       cron: "0 30 6 * * *"   # todo dia às 06:30, fuso de São Paulo
-  mensalidade:
-    dia-vencimento: 10   # de 1 a 28; fora disso a aplicação não sobe
   rota:
     margem-chegada-minutos: 15   # teto de chegada à escola = início da aula - margem
+  google-maps:
+    api-key: ${GOOGLE_MAPS_API_KEY:}   # vazia: sem Google, a rota usa o plano B por proximidade

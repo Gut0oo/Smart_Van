@@ -8,7 +8,7 @@ Antes de qualquer tarefa, leia:
 
 ## Escopo
 
-- Só **back-end** (`backend/`). Não mexer em `frontend/`.
+- Back-end em `backend/` e app em `frontend/` (Expo Router; telas em `src/app/`, chamadas à API em `src/services/api.ts`). No app, manter o estilo visual das telas existentes e instalar pacotes só com `npx expo install`.
 - Não criar nem alterar Dockerfile, docker-compose, Kubernetes ou CI.
 - Não introduzir Flyway nem scripts SQL: o banco segue o mapeamento das entidades (`ddl-auto: update`).
   Criar ou alterar uma entidade **muda o banco** de quem rodar o projeto; informe toda mudança de entidade
@@ -20,7 +20,7 @@ Antes de qualquer tarefa, leia:
 
 ```
 backend/src/main/java/br/com/smartvan/
-  config/       configurações (@Configuration): senha, segurança, relógio, agendador, mapas
+  config/       configurações (@Configuration): senha, interceptor, relógio, agendador, mapas
   controller/   @RestController — só recebe, valida e delega
   service/      regras de negócio, agendadores (XxxJob) e listeners de evento
   repository/   Spring Data JPA (um repository por entidade, com todas as consultas dela)

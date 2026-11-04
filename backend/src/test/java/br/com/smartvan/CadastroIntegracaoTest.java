@@ -17,7 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,7 +58,8 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
     }
 
     private Map<String, Object> atendimento(Long escolaId, String inicioAula, String saida) {
-        return Map.of("escolaId", escolaId, "horarioInicioAula", inicioAula, "horarioSaidaMotorista", saida);
+        return Map.of("escolaId", escolaId, "horarioInicioAula", inicioAula, "horarioSaidaMotorista", saida,
+                "horarioSaidaEscola", "12:00", "valorMensal", 320.5);
     }
 
     private Map<String, Object> atendimentos(Object... itens) {
@@ -64,6 +67,52 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
     }
 
     // ---------------------------------------------------------------- escolas
+
+    @Test
+    void administradorCadastraEscolaQueApareceNaListaPublica() throws Exception {
+        Map<String, Object> corpo = Map.of("nome", " Colégio Novo ", "telefone", "1133334444",
+                "endereco", endereco(true));
+
+        fazPost("/escolas", corpo, fabrica.administrador())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.nome").value("Colégio Novo"))
+                .andExpect(jsonPath("$.telefone").value("1133334444"))
+                .andExpect(jsonPath("$.endereco.cidade").value("São Paulo"));
+
+        fazGet("/escolas?nome=novo").andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void telefoneDaEscolaEOpcional() throws Exception {
+        fazPost("/escolas", Map.of("nome", "Colégio Novo", "endereco", endereco(true)), fabrica.administrador())
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void cadastroDeEscolaEDoAdministrador() throws Exception {
+        Map<String, Object> corpo = Map.of("nome", "Colégio Novo", "endereco", endereco(true));
+
+        fazPost("/escolas", corpo).andExpect(status().isUnauthorized());
+        fazPost("/escolas", corpo, fabrica.responsavel()).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("SEM_PERMISSAO"));
+        fazPost("/escolas", corpo, fabrica.motorista()).andExpect(status().isForbidden());
+        fazGet("/escolas").andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void escolaSemNomeOuSemEnderecoDevolve400() throws Exception {
+        Usuario adm = fabrica.administrador();
+        fazPost("/escolas", Map.of("nome", " ", "endereco", endereco(true)), adm)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.nome").exists());
+        fazPost("/escolas", Map.of("nome", "Colégio Novo"), adm)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.endereco").exists());
+        fazPost("/escolas", Map.of("nome", "Colégio Novo", "endereco", Map.of("logradouro", "Rua X")), adm)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos['endereco.cep']").exists());
+    }
 
     @Test
     void listaEscolasSemLoginComFiltrosDeCidadeENome() throws Exception {
@@ -266,6 +315,84 @@ class CadastroIntegracaoTest extends TesteIntegracaoBase {
                 atendimento(escola, "07:00", "06:00")), fabrica.motorista())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void doisAtendimentosNoMesmoHorarioDevolvem422ESemApagarOsAnteriores() throws Exception {
+        Long a = fabrica.escola().getId();
+        Long b = fabrica.escola().getId();
+        Motorista m = fabrica.motorista();
+        fazPut("/motorista/escolas", atendimentos(atendimento(a, "07:00", "06:00")), m).andExpect(status().isOk());
+
+        //mesmo início da aula, em outra escola
+        fazPut("/motorista/escolas", atendimentos(atendimento(a, "07:00", "06:00"), atendimento(b, "07:00", "06:10")), m)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ATENDIMENTO_MESMO_HORARIO"));
+        //mesma saída do motorista
+        fazPut("/motorista/escolas", atendimentos(atendimento(a, "07:00", "06:00"), atendimento(b, "07:30", "06:00")), m)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("ATENDIMENTO_MESMO_HORARIO"));
+
+        fazGet("/motorista/escolas", m).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void horarioDeSaidaDaEscolaEObrigatorioEVemNaResposta() throws Exception {
+        Long escola = fabrica.escola().getId();
+        Motorista m = fabrica.motorista();
+        Map<String, Object> semVolta = Map.of("escolaId", escola, "horarioInicioAula", "07:00",
+                "horarioSaidaMotorista", "06:00");
+
+        fazPut("/motorista/escolas", atendimentos(semVolta), m)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos['atendimentos[0].horarioSaidaEscola']").exists());
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola, "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].horarioSaidaEscola").value("12:00"));
+    }
+
+    @Test
+    void pisoDoAtendimentoEObrigatorioPositivoEVemComDuasCasas() throws Exception {
+        Long escola = fabrica.escola().getId();
+        Motorista m = fabrica.motorista();
+        Map<String, Object> semPiso = Map.of("escolaId", escola, "horarioInicioAula", "07:00",
+                "horarioSaidaMotorista", "06:00", "horarioSaidaEscola", "12:00");
+        Map<String, Object> pisoZero = Map.of("escolaId", escola, "horarioInicioAula", "07:00",
+                "horarioSaidaMotorista", "06:00", "horarioSaidaEscola", "12:00", "valorMensal", 0);
+
+        fazPut("/motorista/escolas", atendimentos(semPiso), m).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACAO"))
+                .andExpect(jsonPath("$.campos['atendimentos[0].valorMensal']").exists());
+        fazPut("/motorista/escolas", atendimentos(pisoZero), m).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos['atendimentos[0].valorMensal']").exists());
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola, "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"valorMensal\":320.50")));
+        fazGet("/motorista/escolas", m).andExpect(jsonPath("$[0].valorMensal").value(320.5));
+    }
+
+    @Test
+    void mudarSoOPisoMantemOAtendimento() throws Exception {
+        Escola escola = fabrica.escola();
+        Motorista m = fabrica.motorista();
+        Long id = fabrica.atendimento(m, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)).getId();
+
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola.getId(), "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].valorMensal").value(320.5));
+    }
+
+    @Test
+    void mudarSoOHorarioDeVoltaMantemOAtendimento() throws Exception {
+        Escola escola = fabrica.escola();
+        Motorista m = fabrica.motorista();
+        Long id = fabrica.atendimento(m, escola, LocalTime.of(7, 0), LocalTime.of(6, 0)).getId();
+
+        fazPut("/motorista/escolas", atendimentos(atendimento(escola.getId(), "07:00", "06:00")), m)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].horarioSaidaEscola").value("12:00"));
     }
 
     @Test

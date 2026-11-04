@@ -31,6 +31,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -161,8 +162,10 @@ public class ContratacaoService {
         return horarioAula.plusMinutes(TOLERANCIA_HORARIO_MINUTOS);
     }
 
+    //% e _ digitados valem como texto: nome=% não pode virar a lista geral
     private static String padrao(String texto) {
-        return "%" + (texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT)) + "%";
+        String limpo = texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
+        return "%" + limpo.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
 
     private Map<Long, Veiculo> maioresVeiculos(Collection<Long> motoristaIds) {
@@ -207,6 +210,12 @@ public class ContratacaoService {
         if (motorista.getStatusValidacao() != StatusMotorista.VALIDADO) {
             throw RegraNegocioException.regra("MOTORISTA_NAO_VALIDADO", "O motorista ainda não foi validado.");
         }
+        //sem valor, a proposta é no piso; com valor, o responsável negocia e o motorista decide no aceite
+        BigDecimal valorMensal = req.valorMensal() != null ? req.valorMensal() : atendimento.getValorMensal();
+        if (valorMensal == null) {
+            throw RegraNegocioException.regra("VALOR_OBRIGATORIO",
+                    "Este horário não tem preço definido: informe o valor da proposta.");
+        }
         exigirVaga(atendimento);
         //sempre depois do atendimento, na mesma ordem do aceite: duas travas nunca se esperam em círculo
         alunos.travar(aluno.getId());
@@ -223,7 +232,7 @@ public class ContratacaoService {
         c.setMotorista(motorista);
         c.setAluno(aluno);
         c.setAtendimento(atendimento);
-        c.setValorMensal(req.valorMensal());
+        c.setValorMensal(valorMensal);
         c.setDataInicio(LocalDate.now(clock));
         c.setStatus(StatusContrato.PENDENTE);
         c = contratos.save(c);
@@ -244,7 +253,7 @@ public class ContratacaoService {
         exigirAlunoSemContratoAtivo(c.getAluno().getId());
 
         c.setStatus(StatusContrato.ATIVO);
-        c.setDataInicio(LocalDate.now(clock));
+        c.setDataInicio(dataDeInicio(c));
         contratos.saveAndFlush(c);
 
         notificacoes.notificar(c.getResponsavel().getId(), TipoNotificacao.PROPOSTA_ACEITA, "Proposta aceita",
@@ -261,6 +270,14 @@ public class ContratacaoService {
         notificacoes.notificar(c.getResponsavel().getId(), TipoNotificacao.PROPOSTA_RECUSADA, "Proposta recusada",
                 c.getMotorista().getNome() + " recusou a proposta para " + c.getAluno().getNome() + ".", c.getId());
         return ContratoResponseDTO.de(c);
+    }
+
+    //durante o aviso prévio do contrato anterior, o novo só começa quando o anterior encerrar
+    private LocalDate dataDeInicio(Contrato c) {
+        LocalDate hoje = LocalDate.now(clock);
+        return contratos.encerramentoDoContratoAnterior(c.getAluno().getId(), c.getId())
+                .filter(encerramento -> encerramento.isAfter(hoje))
+                .orElse(hoje);
     }
 
     private Contrato travarDoMotorista(Long motoristaId, Long contratoId) {
@@ -287,7 +304,7 @@ public class ContratacaoService {
     }
 
     private void exigirAlunoSemContratoAtivo(Long alunoId) {
-        if (contratos.existsByAlunoIdAndStatus(alunoId, StatusContrato.ATIVO)) {
+        if (contratos.existsByAlunoIdAndStatusAndDataSolicitacaoCancelamentoIsNull(alunoId, StatusContrato.ATIVO)) {
             throw RegraNegocioException.conflito("ALUNO_JA_TEM_CONTRATO", "O aluno já possui um contrato ativo.");
         }
     }

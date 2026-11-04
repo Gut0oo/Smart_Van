@@ -10,11 +10,11 @@ spring:
       ddl-auto: create-drop
 
 smartvan:
+  cors:
+    origens: ${CORS_ORIGENS:http://localhost:8081,http://localhost:19006}   # app web (Expo) em desenvolvimento
   agendador:
     habilitado: false  # os testes chamam os jobs direto
     mensalidades:
       cron: "0 0 6 * * *"
     cancelamentos:
       cron: "0 30 6 * * *"
-  mensalidade:
-    dia-vencimento: 10

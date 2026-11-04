@@ -23,7 +23,8 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
 
     public record AtendimentoResumo(Long id,
                                     @JsonFormat(pattern = "HH:mm") LocalTime horarioInicioAula,
-                                    @JsonFormat(pattern = "HH:mm") LocalTime horarioSaidaMotorista) {
+                                    @JsonFormat(pattern = "HH:mm") LocalTime horarioSaidaMotorista,
+                                    BigDecimal valorMensal) {
     }
 
     public record Cancelamento(LocalDate dataSolicitacao, LocalDate dataEncerramentoEfetivo,
@@ -33,11 +34,13 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
     public static ContratoResponseDTO de(Contrato c) {
         Atendimento a = c.getAtendimento();
         Escola escola = a != null ? a.getEscola() : c.getAluno().getEscola();
-        return new ContratoResponseDTO(c.getId(), c.getStatus(), c.getValorMensal(), c.getDataInicio(),
+        //o contrato recém-criado ainda tem o valor como veio no pedido; o da API tem sempre 2 casas
+        return new ContratoResponseDTO(c.getId(), c.getStatus(), Dinheiro.duasCasas(c.getValorMensal()), c.getDataInicio(),
                 AlunoResumoResponseDTO.de(c.getAluno()), UsuarioResumoResponseDTO.de(c.getResponsavel()),
                 UsuarioResumoResponseDTO.de(c.getMotorista()),
                 escola == null ? null : EscolaResumoResponseDTO.de(escola),
-                a == null ? null : new AtendimentoResumo(a.getId(), a.getHorarioInicioAula(), a.getHorarioSaidaMotorista()),
+                a == null ? null : new AtendimentoResumo(a.getId(), a.getHorarioInicioAula(), a.getHorarioSaidaMotorista(),
+                        Dinheiro.duasCasas(a.getValorMensal())),
                 c.getDataSolicitacaoCancelamento() == null ? null
                         : new Cancelamento(c.getDataSolicitacaoCancelamento(), c.getDataEncerramentoEfetivo(),
                                 c.getSolicitanteCancelamento(), c.getMotivoCancelamento()));
