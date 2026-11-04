@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
 
 import { CamposEndereco, enderecoCompleto, enderecoDe, enderecoParaApi, enderecoVazio } from '@/components/formularios';
-import { Aviso, Botao, Tela } from '@/components/ui';
+import { Aviso, Botao, Tela, useVoltar } from '@/components/ui';
 import { api } from '@/services/api';
 import { Endereco } from '@/services/tipos';
 import { mensagemDeErro } from '@/services/useCarregar';
 
 // Endereço de onde a van sai na ida e para onde volta no fim da volta.
 export default function EnderecoPartida() {
-  const router = useRouter();
+  const voltar = useVoltar();
   const [endereco, setEndereco] = useState(enderecoVazio);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -30,7 +29,7 @@ export default function EnderecoPartida() {
         setErro('Endereço salvo, mas não foi possível localizar no mapa. Confira rua, número e CEP.');
         return;
       }
-      router.back();
+      voltar('/motorista/conta');
     } catch (e) {
       setErro(mensagemDeErro(e));
     } finally {

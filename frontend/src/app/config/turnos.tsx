@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { SeletorEscola } from '@/components/formularios';
-import { Aviso, Botao, Campo, Cartao, Carregando, Secao, Tela, s } from '@/components/ui';
+import { Aviso, Botao, Campo, Cartao, Carregando, Secao, Tela, s, useVoltar } from '@/components/ui';
 import { api } from '@/services/api';
 import { dinheiro, hora, horaValida } from '@/services/formato';
 import { Atendimento } from '@/services/tipos';
@@ -14,7 +13,7 @@ type Turno = { escolaId: number; escolaNome: string; inicio: string; saida: stri
 
 // Edita a lista de escolas e horários; o PUT substitui a lista inteira.
 export default function TurnosScreen() {
-  const router = useRouter();
+  const voltar = useVoltar();
   const [turnos, setTurnos] = useState<Turno[] | null>(null);
   const [escolaId, setEscolaId] = useState<number | null>(null);
   const [inicio, setInicio] = useState('');
@@ -69,7 +68,7 @@ export default function TurnosScreen() {
           valorMensal: pisoNumero(t.piso),
         })),
       });
-      router.back();
+      voltar('/motorista/conta');
     } catch (e) {
       setErro(mensagemDeErro(e));
     } finally {

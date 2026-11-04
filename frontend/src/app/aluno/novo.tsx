@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
 
 import { CamposEndereco, enderecoCompleto, enderecoParaApi, enderecoVazio, SeletorEscola } from '@/components/formularios';
-import { Aviso, Botao, Campo, Opcoes, Secao, Tela } from '@/components/ui';
+import { Aviso, Botao, Campo, Opcoes, Secao, Tela, useVoltar } from '@/components/ui';
 import { api } from '@/services/api';
 import { dataParaApi } from '@/services/formato';
 import { mensagemDeErro } from '@/services/useCarregar';
@@ -10,7 +9,7 @@ import { mensagemDeErro } from '@/services/useCarregar';
 type Parentesco = 'PAI' | 'MAE' | 'AVO' | 'TIO' | 'RESPONSAVEL_LEGAL';
 
 export default function NovoAluno() {
-  const router = useRouter();
+  const voltar = useVoltar();
   const [nome, setNome] = useState('');
   const [nascimento, setNascimento] = useState('');
   const [serie, setSerie] = useState('');
@@ -35,7 +34,7 @@ export default function NovoAluno() {
         parentesco,
         endereco: enderecoParaApi(endereco),
       });
-      router.back();
+      voltar('/responsavel');
     } catch (e) {
       setErro(mensagemDeErro(e));
     } finally {

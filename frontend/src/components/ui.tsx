@@ -15,7 +15,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Href, useRouter } from 'expo-router';
 
 export const cores = {
   texto: '#111',
@@ -28,6 +28,12 @@ export const cores = {
   botao: '#222',
   erro: '#b00020',
 };
+
+// Volta para a tela anterior; aberta direto pelo endereço (sem anterior), vai para `destino`.
+export function useVoltar() {
+  const router = useRouter();
+  return (destino: Href = '/') => (router.canGoBack() ? router.back() : router.replace(destino));
+}
 
 // Pergunta antes de uma ação; no navegador o Alert do React Native não tem botões, então usa o confirm.
 export function confirmar(titulo: string, texto: string, aoConfirmar: () => void) {
@@ -58,12 +64,12 @@ export function Tela({
   carregando?: boolean;
   aoAtualizar?: () => void;
 }) {
-  const router = useRouter();
+  const voltarTela = useVoltar();
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
       <View style={s.header}>
         {voltar && (
-          <TouchableOpacity style={s.btnVoltar} onPress={() => router.back()} accessibilityLabel="Voltar">
+          <TouchableOpacity style={s.btnVoltar} onPress={() => voltarTela()} accessibilityLabel="Voltar">
             <Text style={s.textoVoltar}>‹</Text>
           </TouchableOpacity>
         )}

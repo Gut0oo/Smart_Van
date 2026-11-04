@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
 
-import { Aviso, Botao, Campo, Opcoes, Tela } from '@/components/ui';
+import { Aviso, Botao, Campo, Opcoes, Tela, useVoltar } from '@/components/ui';
 import { api } from '@/services/api';
 import { mensagemDeErro } from '@/services/useCarregar';
 
 type TipoVeiculo = 'VAN' | 'MICRO_ONIBUS' | 'CARRO';
 
 export default function NovoVeiculo() {
-  const router = useRouter();
+  const voltar = useVoltar();
   const [tipo, setTipo] = useState<TipoVeiculo>('VAN');
   const [placa, setPlaca] = useState('');
   const [modelo, setModelo] = useState('');
@@ -31,7 +30,7 @@ export default function NovoVeiculo() {
         capacidade: cap,
         tipo,
       });
-      router.back();
+      voltar('/motorista/conta');
     } catch (e) {
       setErro(mensagemDeErro(e));
     } finally {
