@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.git/
+.claude/
+.vscode/
+.env
+.env.*
+*.log
+android/
+ios/

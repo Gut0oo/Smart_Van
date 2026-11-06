@@ -9,7 +9,6 @@ export function useCarregar<T>(buscar: () => Promise<T>, deps: unknown[] = []) {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const recarregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
@@ -20,6 +19,8 @@ export function useCarregar<T>(buscar: () => Promise<T>, deps: unknown[] = []) {
     } finally {
       setCarregando(false);
     }
+  // As telas fornecem as dependências da busca (por exemplo, o ID da rota).
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   }, deps);
 
   useFocusEffect(

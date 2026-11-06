@@ -1,0 +1,8 @@
+# Configurações e credenciais locais.
+.env
+.env.*
+!.env.example
+
+# Pacotes das imagens para transferência manual.
+smartvan-images*.tar
+smartvan-images*.tar.gz
