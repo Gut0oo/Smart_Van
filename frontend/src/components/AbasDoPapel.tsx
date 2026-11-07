@@ -34,7 +34,7 @@ export function AbasDoPapel({ papel, abas }: { papel: TipoUsuario; abas: Aba[] }
           name={a.nome}
           options={{
             title: a.titulo,
-            tabBarIcon: ({ color, size }) => <Ionicons name={a.icone} size={size || 22} color={color} />,
+            tabBarIcon: ({ color, size }) => <Ionicons name={a.icone} size={size || 22} color={typeof color === 'number' ? undefined : (color ?? undefined)} />,
           }}
         />
       ))}
