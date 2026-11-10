@@ -122,7 +122,8 @@ MotoristaPerfil { id, nome, telefone, veiculo?: VeiculoResumo, totalClientes,
 Contrato { id, status, valorMensal, dataInicio, aluno: AlunoResumo, responsavel: UsuarioResumo,
            motorista: UsuarioResumo, escola?: EscolaResumo,
            atendimento?: { id, horarioInicioAula, horarioSaidaMotorista, valorMensal? },
-           cancelamento?: { dataSolicitacao, dataEncerramentoEfetivo, solicitante, motivo } }
+           cancelamento?: { dataSolicitacao, dataEncerramentoEfetivo, solicitante, motivo },
+           enderecoAluno?: Endereco }   // endereço principal do aluno, para o motorista avaliar a proposta
 ```
 
 Regras (seção 5 do contexto):

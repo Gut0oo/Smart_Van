@@ -5,7 +5,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Aviso, Botao, Campo, Carregando, Cartao, Linha, Secao, Selo, Tela, confirmar, s } from '@/components/ui';
 import { api } from '@/services/api';
 import { useAuth } from '@/services/auth';
-import { competencia, data, dinheiro, hora, STATUS_CONTRATO, STATUS_MENSALIDADE } from '@/services/formato';
+import { competencia, data, dinheiro, endereco, hora, STATUS_CONTRATO, STATUS_MENSALIDADE } from '@/services/formato';
 import { Contrato, Mensalidade } from '@/services/tipos';
 import { mensagemDeErro, useCarregar } from '@/services/useCarregar';
 
@@ -63,6 +63,7 @@ export default function ContratoScreen() {
             <Linha rotulo="Responsável" valor={c.responsavel.nome} />
             <Linha rotulo="Telefone do responsável" valor={c.responsavel.telefone} />
             <Linha rotulo="Escola" valor={c.escola?.nome} />
+            {c.enderecoAluno && <Linha rotulo="Endereço do aluno" valor={endereco(c.enderecoAluno)} />}
             {c.atendimento && (
               <Linha
                 rotulo="Horário"

@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Aviso, Cartao, Selo, s } from '@/components/ui';
-import { data, dinheiro, hora, STATUS_CONTRATO } from '@/services/formato';
+import { data, dinheiro, endereco, hora, STATUS_CONTRATO } from '@/services/formato';
 import { Contrato } from '@/services/tipos';
 
 // Cartões de contrato; `doMotorista` mostra o responsável em vez do motorista.
@@ -42,6 +42,7 @@ export function ListaContratos({
               {c.escola?.nome ?? ''}
               {c.atendimento ? ` · aula ${hora(c.atendimento.horarioInicioAula)}` : ''} · {dinheiro(c.valorMensal)}/mês
             </Text>
+            {doMotorista && c.enderecoAluno && <Text style={s.pequeno}>Endereço: {endereco(c.enderecoAluno)}</Text>}
             {c.status === 'ATIVO' && <Text style={s.pequeno}>Início: {data(c.dataInicio)}</Text>}
           </Cartao>
         );

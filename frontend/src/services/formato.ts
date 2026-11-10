@@ -1,4 +1,6 @@
-// Conversões de data, hora e dinheiro entre a API e a tela.
+// Conversões de data, hora, dinheiro e endereço entre a API e a tela.
+
+import type { Endereco } from './tipos';
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -65,3 +67,10 @@ export const STATUS_MENSALIDADE: Record<string, string> = {
   PAGA: 'Paga',
   ATRASADA: 'Atrasada',
 };
+
+// Rua Augusta, 500 (ap 12) · Consolação, São Paulo/SP
+export function endereco(e?: Endereco | null) {
+  if (!e) return '—';
+  const complemento = e.complemento ? ` (${e.complemento})` : '';
+  return `${e.logradouro}, ${e.numero}${complemento} · ${e.bairro}, ${e.cidade}/${e.uf}`;
+}

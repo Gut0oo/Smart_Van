@@ -25,13 +25,15 @@ public class CancelamentoService {
     private final MensalidadeConsultaService mensalidades;
     private final NotificacaoService notificacoes;
     private final Clock clock;
+    private final ContratoResposta resposta;
 
     public CancelamentoService(ContratoRepository contratos, MensalidadeConsultaService mensalidades,
-                               NotificacaoService notificacoes, Clock clock) {
+                               NotificacaoService notificacoes, Clock clock, ContratoResposta resposta) {
         this.contratos = contratos;
         this.mensalidades = mensalidades;
         this.notificacoes = notificacoes;
         this.clock = clock;
+        this.resposta = resposta;
     }
 
     @Transactional
@@ -62,7 +64,7 @@ public class CancelamentoService {
         notificacoes.notificar(outraParte, TipoNotificacao.CANCELAMENTO_SOLICITADO, "Cancelamento solicitado",
                 "O contrato de " + c.getAluno().getNome() + " será encerrado em "
                         + c.getDataEncerramentoEfetivo().format(DATA) + ". Motivo: " + motivo, c.getId());
-        return ContratoResponseDTO.de(c);
+        return resposta.de(c);
     }
 
     @Transactional(readOnly = true)

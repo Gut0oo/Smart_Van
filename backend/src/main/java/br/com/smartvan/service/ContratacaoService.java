@@ -60,11 +60,13 @@ public class ContratacaoService {
     private final NotificacaoService notificacoes;
     private final ApplicationEventPublisher eventos;
     private final Clock clock;
+    private final ContratoResposta resposta;
 
     public ContratacaoService(AtendimentoRepository atendimentos, ContratoRepository contratos,
                               VeiculoRepository veiculos, MotoristaRepository motoristas, AlunoRepository alunos,
                               ResponsavelRepository responsaveis, ResponsavelAlunoRepository vinculos,
-                              NotificacaoService notificacoes, ApplicationEventPublisher eventos, Clock clock) {
+                              NotificacaoService notificacoes, ApplicationEventPublisher eventos, Clock clock,
+                              ContratoResposta resposta) {
         this.atendimentos = atendimentos;
         this.contratos = contratos;
         this.veiculos = veiculos;
@@ -75,6 +77,7 @@ public class ContratacaoService {
         this.notificacoes = notificacoes;
         this.eventos = eventos;
         this.clock = clock;
+        this.resposta = resposta;
     }
 
     // ---------------------------------------------------------------- busca e perfil
@@ -239,7 +242,7 @@ public class ContratacaoService {
 
         notificacoes.notificar(motorista.getId(), TipoNotificacao.PROPOSTA_RECEBIDA, "Nova proposta de contrato",
                 responsavel.getNome() + " enviou uma proposta para o aluno " + aluno.getNome() + ".", c.getId());
-        return ContratoResponseDTO.de(c);
+        return resposta.de(c);
     }
 
     @Transactional
@@ -259,7 +262,7 @@ public class ContratacaoService {
         notificacoes.notificar(c.getResponsavel().getId(), TipoNotificacao.PROPOSTA_ACEITA, "Proposta aceita",
                 c.getMotorista().getNome() + " aceitou a proposta para " + c.getAluno().getNome() + ".", c.getId());
         eventos.publishEvent(new ContratoAtivadoEvent(c.getId()));
-        return ContratoResponseDTO.de(c);
+        return resposta.de(c);
     }
 
     @Transactional
@@ -269,7 +272,7 @@ public class ContratacaoService {
         c.setStatus(StatusContrato.RECUSADO);
         notificacoes.notificar(c.getResponsavel().getId(), TipoNotificacao.PROPOSTA_RECUSADA, "Proposta recusada",
                 c.getMotorista().getNome() + " recusou a proposta para " + c.getAluno().getNome() + ".", c.getId());
-        return ContratoResponseDTO.de(c);
+        return resposta.de(c);
     }
 
     //durante o aviso prévio do contrato anterior, o novo só começa quando o anterior encerrar
@@ -316,7 +319,7 @@ public class ContratacaoService {
         List<Contrato> lista = status == null
                 ? contratos.doUsuario(usuarioId)
                 : contratos.doUsuarioComStatus(usuarioId, status);
-        return lista.stream().map(ContratoResponseDTO::de).toList();
+        return resposta.de(lista);
     }
 
     @Transactional(readOnly = true)
@@ -325,6 +328,6 @@ public class ContratacaoService {
         if (!c.getResponsavel().getId().equals(eu.id()) && !c.getMotorista().getId().equals(eu.id())) {
             throw RegraNegocioException.semPermissao();
         }
-        return ContratoResponseDTO.de(c);
+        return resposta.de(c);
     }
 }
