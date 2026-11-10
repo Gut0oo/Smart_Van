@@ -122,7 +122,8 @@ MotoristaPerfil { id, nome, telefone, veiculo?: VeiculoResumo, totalClientes,
 Contrato { id, status, valorMensal, dataInicio, aluno: AlunoResumo, responsavel: UsuarioResumo,
            motorista: UsuarioResumo, escola?: EscolaResumo,
            atendimento?: { id, horarioInicioAula, horarioSaidaMotorista, valorMensal? },
-           cancelamento?: { dataSolicitacao, dataEncerramentoEfetivo, solicitante, motivo } }
+           cancelamento?: { dataSolicitacao, dataEncerramentoEfetivo, solicitante, motivo },
+           enderecoAluno?: Endereco }   // endereço principal do aluno, para o motorista avaliar a proposta
 ```
 
 Regras (seção 5 do contexto):
@@ -228,7 +229,7 @@ Regras:
 
 Regras:
 - Solicitante precisa ser parte (**403**); contrato `ATIVO` (**409** `CONTRATO_NAO_ATIVO`); sem solicitação anterior (**409** `CANCELAMENTO_JA_SOLICITADO`).
-- Grava `dataSolicitacaoCancelamento = hoje`, `dataEncerramentoEfetivo = hoje + 30`, `solicitanteCancelamento` (= tipo do usuário), `motivo`. Status **continua `ATIVO`**. Notifica a outra parte.
+- Grava `dataSolicitacaoCancelamento = hoje`, `dataEncerramentoEfetivo = próximo vencimento depois de hoje` (mesmo dia do mês do início do contrato; em mês mais curto, o último dia; se o contrato ainda não começou, o próprio início), `solicitanteCancelamento` (= tipo do usuário), `motivo`. Status **continua `ATIVO`**. Notifica a outra parte. Assim o mês já pago é usado até o fim e nenhuma mensalidade nova é gerada.
 - Agendador diário (`smartvan.agendador.cancelamentos.cron`, padrão `0 30 6 * * *`): contratos `ATIVO` com `dataEncerramentoEfetivo <= hoje` → `ENCERRADO`; se `existePendenteOuAtrasada` → notifica as duas partes (tipo `CANCELAMENTO_COM_PENDENCIA`); senão notifica `CONTRATO_ENCERRADO`.
 
 ---

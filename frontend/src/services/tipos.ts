@@ -76,6 +76,7 @@ export type Contrato = {
   escola?: EscolaResumo | null;
   atendimento?: { id: number; horarioInicioAula: string; horarioSaidaMotorista: string; valorMensal?: number | string | null } | null;
   cancelamento?: { dataSolicitacao: string; dataEncerramentoEfetivo: string; solicitante: string; motivo: string } | null;
+  enderecoAluno?: Endereco | null;
 };
 
 export type Mensalidade = {

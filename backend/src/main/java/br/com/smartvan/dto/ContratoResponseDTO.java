@@ -4,6 +4,7 @@ import br.com.smartvan.enums.StatusContrato;
 import br.com.smartvan.enums.TipoUsuario;
 import br.com.smartvan.model.Atendimento;
 import br.com.smartvan.model.Contrato;
+import br.com.smartvan.model.Endereco;
 import br.com.smartvan.model.Escola;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -14,12 +15,13 @@ import java.time.LocalTime;
 /**
  * Objeto {@code Contrato} do contrato da API. As associações são lazy: chame {@link #de} dentro de uma transação.
  * {@code atendimento} sai nulo se o motorista removeu o turno de um contrato já terminado, e {@code cancelamento}
- * só vem preenchido quando há pedido de cancelamento.
+ * só vem preenchido quando há pedido de cancelamento. {@code enderecoAluno} é o endereço principal do aluno.
  */
 public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal valorMensal, LocalDate dataInicio,
                                   AlunoResumoResponseDTO aluno, UsuarioResumoResponseDTO responsavel,
                                   UsuarioResumoResponseDTO motorista, EscolaResumoResponseDTO escola,
-                                  AtendimentoResumo atendimento, Cancelamento cancelamento) {
+                                  AtendimentoResumo atendimento, Cancelamento cancelamento,
+                                  EnderecoResponseDTO enderecoAluno) {
 
     public record AtendimentoResumo(Long id,
                                     @JsonFormat(pattern = "HH:mm") LocalTime horarioInicioAula,
@@ -32,6 +34,10 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
     }
 
     public static ContratoResponseDTO de(Contrato c) {
+        return de(c, null);
+    }
+
+    public static ContratoResponseDTO de(Contrato c, Endereco enderecoAluno) {
         Atendimento a = c.getAtendimento();
         Escola escola = a != null ? a.getEscola() : c.getAluno().getEscola();
         //o contrato recém-criado ainda tem o valor como veio no pedido; o da API tem sempre 2 casas
@@ -43,6 +49,7 @@ public record ContratoResponseDTO(Long id, StatusContrato status, BigDecimal val
                         Dinheiro.duasCasas(a.getValorMensal())),
                 c.getDataSolicitacaoCancelamento() == null ? null
                         : new Cancelamento(c.getDataSolicitacaoCancelamento(), c.getDataEncerramentoEfetivo(),
-                                c.getSolicitanteCancelamento(), c.getMotivoCancelamento()));
+                                c.getSolicitanteCancelamento(), c.getMotivoCancelamento()),
+                enderecoAluno == null ? null : EnderecoResponseDTO.de(enderecoAluno));
     }
 }

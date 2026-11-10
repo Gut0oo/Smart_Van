@@ -15,24 +15,25 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-//solicitação de cancelamento com aviso prévio e encerramento dos contratos vencidos
+//solicitação de cancelamento (vai até o próximo vencimento) e encerramento dos contratos vencidos
 @Service
 public class CancelamentoService {
 
-    private static final int AVISO_PREVIO_DIAS = 30;
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final ContratoRepository contratos;
     private final MensalidadeConsultaService mensalidades;
     private final NotificacaoService notificacoes;
     private final Clock clock;
+    private final ContratoResposta resposta;
 
     public CancelamentoService(ContratoRepository contratos, MensalidadeConsultaService mensalidades,
-                               NotificacaoService notificacoes, Clock clock) {
+                               NotificacaoService notificacoes, Clock clock, ContratoResposta resposta) {
         this.contratos = contratos;
         this.mensalidades = mensalidades;
         this.notificacoes = notificacoes;
         this.clock = clock;
+        this.resposta = resposta;
     }
 
     @Transactional
@@ -54,7 +55,8 @@ public class CancelamentoService {
 
         LocalDate hoje = LocalDate.now(clock);
         c.setDataSolicitacaoCancelamento(hoje);
-        c.setDataEncerramentoEfetivo(hoje.plusDays(AVISO_PREVIO_DIAS));
+        //vai até o próximo vencimento: usa o mês já pago até o fim, sem gerar mensalidade nova
+        c.setDataEncerramentoEfetivo(VencimentoMensal.proximoDepoisDe(c.getDataInicio(), hoje));
         c.setSolicitanteCancelamento(eu.tipo());
         c.setMotivoCancelamento(motivo);
 
@@ -62,7 +64,7 @@ public class CancelamentoService {
         notificacoes.notificar(outraParte, TipoNotificacao.CANCELAMENTO_SOLICITADO, "Cancelamento solicitado",
                 "O contrato de " + c.getAluno().getNome() + " será encerrado em "
                         + c.getDataEncerramentoEfetivo().format(DATA) + ". Motivo: " + motivo, c.getId());
-        return ContratoResponseDTO.de(c);
+        return resposta.de(c);
     }
 
     @Transactional(readOnly = true)

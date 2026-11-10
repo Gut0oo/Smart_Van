@@ -8,6 +8,7 @@ import br.com.smartvan.event.ContratoAtivadoEvent;
 import br.com.smartvan.model.Aluno;
 import br.com.smartvan.model.Atendimento;
 import br.com.smartvan.model.Contrato;
+import br.com.smartvan.model.Endereco;
 import br.com.smartvan.model.Escola;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
@@ -1089,6 +1090,25 @@ class ContratacaoIntegracaoTest extends TesteIntegracaoBase {
     void listagemComStatusInvalidoDevolve400() throws Exception {
         fazGet("/contratos?status=XPTO", fabrica.responsavel()).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACAO"));
+    }
+
+    @Test
+    void propostaMostraAoMotoristaOEnderecoPrincipalDoAluno() throws Exception {
+        Escola e = fabrica.escola();
+        Atendimento a = atendimentoCom(e, 5);
+        Responsavel r = fabrica.responsavel();
+        Endereco casa = fabrica.endereco("-23.5610000", "-46.6820000");
+        Contrato c = pendente(r, fabrica.aluno(r, e, casa), a);
+
+        fazGet("/contratos/" + c.getId(), a.getMotorista()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.enderecoAluno.logradouro").value(casa.getLogradouro()))
+                .andExpect(jsonPath("$.enderecoAluno.numero").value(casa.getNumero()))
+                .andExpect(jsonPath("$.enderecoAluno.bairro").value("Pinheiros"))
+                .andExpect(jsonPath("$.enderecoAluno.cidade").value("São Paulo"));
+        fazGet("/contratos?status=PENDENTE", a.getMotorista()).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].enderecoAluno.logradouro").value(casa.getLogradouro()));
+        fazPostSemCorpo("/contratos/" + c.getId() + "/aceitar", a.getMotorista()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.enderecoAluno.logradouro").value(casa.getLogradouro()));
     }
 
     @Test
