@@ -5,29 +5,43 @@ import { useLocalSearchParams } from 'expo-router';
 import { Aviso, Botao, Carregando, Cartao, Linha, Secao, Tela, cores, s } from '@/components/ui';
 import { api } from '@/services/api';
 import { data, hora } from '@/services/formato';
-import { Rota } from '@/services/tipos';
+import { Endereco, Rota } from '@/services/tipos';
 import { useCarregar } from '@/services/useCarregar';
 
 // O link de rotas do Google Maps aceita até 9 paradas intermediárias.
 const MAX_PARADAS_LINK = 9;
 
-// Monta o link do Google Maps com as paradas na ordem da rota. Sem origem, o Maps parte de onde o motorista está.
-function linkGoogleMaps(r: Rota) {
-  const pontos = r.paradas
-    .filter((p) => p.endereco.latitude != null && p.endereco.longitude != null)
-    .map((p) => `${p.endereco.latitude},${p.endereco.longitude}`);
-  if (pontos.length === 0) return null;
+// Ponto para o Maps: coordenadas quando existem, senão o endereço por extenso.
+function ponto(e: Endereco) {
+  if (e.latitude != null && e.longitude != null) return `${e.latitude},${e.longitude}`;
+  return `${e.logradouro}, ${e.numero}, ${e.cidade} - ${e.uf}`;
+}
+
+// Monta o link do Google Maps igual ao percurso calculado pela API: na ida sai do endereço de partida do
+// motorista e passa pelos alunos até a escola; na volta sai da escola, passa pelos alunos e termina na partida.
+function linkGoogleMaps(r: Rota, partida: Endereco) {
+  const paradas = r.paradas.map((p) => ponto(p.endereco));
+  if (paradas.length === 0) return null;
+  const pontos = r.tipo === 'IDA' ? [ponto(partida), ...paradas] : [...paradas, ponto(partida)];
+  const origem = pontos[0];
   const destino = pontos[pontos.length - 1];
-  const intermediarios = pontos.slice(0, -1);
-  const params = new URLSearchParams({ api: '1', destination: destino, travelmode: 'driving' });
+  const intermediarios = pontos.slice(1, -1);
+  const params = new URLSearchParams({ api: '1', origin: origem, destination: destino, travelmode: 'driving' });
   if (intermediarios.length > 0) params.set('waypoints', intermediarios.join('|'));
   return { url: `https://www.google.com/maps/dir/?${params.toString()}`, intermediarios: intermediarios.length };
 }
 
 export default function RotaDetalhe() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { dados: r, carregando, erro, recarregar } = useCarregar(() => api.get<Rota>(`/motorista/rotas/${id}`), [id]);
-  const link = r ? linkGoogleMaps(r) : null;
+  const { dados, carregando, erro, recarregar } = useCarregar(async () => {
+    const [rota, perfil] = await Promise.all([
+      api.get<Rota>(`/motorista/rotas/${id}`),
+      api.get<{ enderecoPartida?: Endereco | null }>('/motorista/perfil'),
+    ]);
+    return { rota, partida: perfil.enderecoPartida ?? null };
+  }, [id]);
+  const r = dados?.rota;
+  const link = r && dados?.partida ? linkGoogleMaps(r, dados.partida) : null;
 
   return (
     <Tela
