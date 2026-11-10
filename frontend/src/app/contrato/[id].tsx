@@ -162,7 +162,7 @@ export default function ContratoScreen() {
                 <Botao titulo="Pedir cancelamento" perigo aoTocar={() => setMostrarCancelar(true)} />
               ) : (
                 <>
-                  <Aviso texto="O contrato continua ativo por 30 dias de aviso prévio e depois é encerrado automaticamente." />
+                  <Aviso texto="O contrato continua ativo até o próximo vencimento da mensalidade e é encerrado nesse dia, sem gerar cobrança nova." />
                   <Campo
                     rotulo="Motivo (mínimo 5 caracteres)"
                     value={motivo}

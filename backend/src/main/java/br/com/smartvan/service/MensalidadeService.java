@@ -63,7 +63,7 @@ public class MensalidadeService {
         LocalDate hoje = LocalDate.now(clock);
         LocalDate competencia = hoje.withDayOfMonth(1);
         //o contrato pode ter sido encerrado depois que o agendador leu a lista de ativos
-        LocalDate vencimento = calcularVencimento(c.getDataInicio(), competencia);
+        LocalDate vencimento = VencimentoMensal.noMes(c.getDataInicio(), competencia);
         boolean encerraAteHoje = c.getDataEncerramentoEfetivo() != null && !c.getDataEncerramentoEfetivo().isAfter(hoje);
         if (c.getStatus() != StatusContrato.ATIVO || hoje.isBefore(c.getDataInicio()) || hoje.isBefore(vencimento)
                 || encerraAteHoje || mensalidades.existsByContratoAlunoIdAndCompetencia(c.getAluno().getId(), competencia)) {
@@ -85,10 +85,6 @@ public class MensalidadeService {
         return true;
     }
 
-    //todo mês no dia da assinatura; em mês mais curto, no último dia
-    private static LocalDate calcularVencimento(LocalDate dataInicio, LocalDate competencia) {
-        return competencia.withDayOfMonth(Math.min(dataInicio.getDayOfMonth(), competencia.lengthOfMonth()));
-    }
 
     @Transactional(readOnly = true)
     public List<Long> idsContratosAtivos() {

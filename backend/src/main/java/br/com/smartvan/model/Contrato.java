@@ -50,7 +50,7 @@ public class Contrato {
     @Column(name = "status", length = 30, nullable = false)
     private StatusContrato status;
 
-    //cancelamento com aviso previo de 30 dias
+    //cancelamento: o contrato segue ativo até o próximo vencimento
     @Column(name = "data_solicitacao_cancelamento")
     private LocalDate dataSolicitacaoCancelamento;
 

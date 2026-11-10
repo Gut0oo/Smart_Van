@@ -92,7 +92,7 @@ class CancelamentoIntegracaoTest extends TesteIntegracaoBase {
     // ---------------------------------------------------------------- solicitação
 
     @Test
-    void responsavelSolicitaEContratoContinuaAtivoComAvisoDe30Dias() throws Exception {
+    void responsavelSolicitaEContratoContinuaAtivoAteOProximoVencimento() throws Exception {
         Contrato c = ativo();
 
         fazPost(url(c), CORPO, resp)
@@ -115,6 +115,49 @@ class CancelamentoIntegracaoTest extends TesteIntegracaoBase {
         assertThat(gravado.getDataEncerramentoEfetivo()).isEqualTo(LocalDate.of(2026, 12, 3));
         assertThat(gravado.getSolicitanteCancelamento()).isEqualTo(TipoUsuario.RESPONSAVEL);
         assertThat(gravado.getMotivoCancelamento()).isEqualTo("Mudança de cidade");
+    }
+
+    /** Solicita o cancelamento na data dada e devolve o encerramento gravado. */
+    private LocalDate encerramentoAoSolicitarEm(Contrato c, LocalDate data) throws Exception {
+        relogio.definirData(data);
+        fazPost(url(c), CORPO, resp).andExpect(status().isOk());
+        return relido(c).getDataEncerramentoEfetivo();
+    }
+
+    private Contrato ativoComInicio(LocalDate inicio) {
+        Contrato c = ativo();
+        c.setDataInicio(inicio);
+        return contratos.save(c);
+    }
+
+    @Test
+    void solicitacaoNoMeioDoMesEncerraNoProximoVencimentoENaoTrintaDiasDepois() throws Exception {
+        //início em 03/11: pedido em 20/11 encerra no vencimento de 03/12, e não em 20/12
+        assertThat(encerramentoAoSolicitarEm(ativo(), LocalDate.of(2026, 11, 20))).isEqualTo(LocalDate.of(2026, 12, 3));
+    }
+
+    @Test
+    void solicitacaoNoProprioDiaDoVencimentoEncerraNoVencimentoSeguinte() throws Exception {
+        //a mensalidade de dezembro vence em 03/12 e já cobre o mês até 03/01
+        assertThat(encerramentoAoSolicitarEm(ativo(), LocalDate.of(2026, 12, 3))).isEqualTo(LocalDate.of(2027, 1, 3));
+    }
+
+    @Test
+    void solicitacaoNaVesperaDoVencimentoEncerraNoDiaSeguinte() throws Exception {
+        assertThat(encerramentoAoSolicitarEm(ativo(), LocalDate.of(2026, 12, 2))).isEqualTo(LocalDate.of(2026, 12, 3));
+    }
+
+    @Test
+    void inicioNoDia31EncerraNoUltimoDiaDeFevereiro() throws Exception {
+        Contrato c = ativoComInicio(LocalDate.of(2027, 1, 31));
+        assertThat(encerramentoAoSolicitarEm(c, LocalDate.of(2027, 2, 10))).isEqualTo(LocalDate.of(2027, 2, 28));
+    }
+
+    @Test
+    void contratoQueAindaNaoComecouEncerraNoInicioSemCobrarNada() throws Exception {
+        //contrato novo esperando o aviso prévio de outro: cancelado antes de começar, encerra no dia em que começaria
+        Contrato c = ativoComInicio(LocalDate.of(2026, 12, 15));
+        assertThat(encerramentoAoSolicitarEm(c, HOJE)).isEqualTo(LocalDate.of(2026, 12, 15));
     }
 
     @Test

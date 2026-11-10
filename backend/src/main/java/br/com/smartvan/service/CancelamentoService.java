@@ -15,11 +15,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-//solicitação de cancelamento com aviso prévio e encerramento dos contratos vencidos
+//solicitação de cancelamento (vai até o próximo vencimento) e encerramento dos contratos vencidos
 @Service
 public class CancelamentoService {
 
-    private static final int AVISO_PREVIO_DIAS = 30;
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final ContratoRepository contratos;
@@ -54,7 +53,8 @@ public class CancelamentoService {
 
         LocalDate hoje = LocalDate.now(clock);
         c.setDataSolicitacaoCancelamento(hoje);
-        c.setDataEncerramentoEfetivo(hoje.plusDays(AVISO_PREVIO_DIAS));
+        //vai até o próximo vencimento: usa o mês já pago até o fim, sem gerar mensalidade nova
+        c.setDataEncerramentoEfetivo(VencimentoMensal.proximoDepoisDe(c.getDataInicio(), hoje));
         c.setSolicitanteCancelamento(eu.tipo());
         c.setMotivoCancelamento(motivo);
 
