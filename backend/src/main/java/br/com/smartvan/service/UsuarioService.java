@@ -5,7 +5,7 @@ import br.com.smartvan.dto.UsuarioResponseDTO;
 import br.com.smartvan.enums.StatusConta;
 import br.com.smartvan.enums.StatusMotorista;
 import br.com.smartvan.enums.TipoUsuario;
-import br.com.smartvan.model.Administrador;
+import br.com.smartvan.exception.RegraNegocioException;
 import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.model.Usuario;
@@ -54,7 +54,7 @@ public class UsuarioService {
                 yield motorista;
             }
             case RESPONSAVEL -> new Responsavel();
-            case ADMINISTRADOR -> new Administrador();
+            case ADMINISTRADOR -> throw RegraNegocioException.semPermissao();
         };
     }
 }

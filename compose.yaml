@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: smartvan-backend:${IMAGE_TAG:-faculdade-v2}
+    image: smartvan-backend:${IMAGE_TAG:-faculdade-v3}
     build:
       context: ./backend
     environment:
@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: smartvan-frontend:${IMAGE_TAG:-faculdade-v2}
+    image: smartvan-frontend:${IMAGE_TAG:-faculdade-v3}
     build:
       context: ./frontend
     ports:

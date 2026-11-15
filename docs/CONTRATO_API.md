@@ -55,7 +55,7 @@ UsuarioResumo { id, nome, telefone }
 
 | Método | Rota | Papel | Corpo → Resposta |
 |---|---|---|---|
-| POST | `/usuarios` | público | cadastro **original do projeto, sem mudança** (`UsuarioController`) → **201** |
+| POST | `/usuarios` | público | cadastro de `RESPONSAVEL` ou `MOTORISTA` (`UsuarioController`) → **201** |
 | POST | `/auth/login` | público | `{ email, senha }` → `{ usuario: Usuario }` |
 | GET | `/auth/me` | logado | → `Usuario` |
 | GET | `/escolas?cidade=&nome=` | público | → `Escola[]` (filtros `contains`, sem acento/caixa não precisa) |
@@ -81,7 +81,7 @@ Atendimento { id, escola: Escola, horarioInicioAula, horarioSaidaMotorista, hora
 Regras:
 - O cadastro é o do projeto original (`POST /usuarios`): conta nasce `PENDENTE` e motorista com `statusValidacao = PENDENTE`.
 - Validação do motorista: motorista inexistente → **404** `NAO_ENCONTRADO`; decisão diferente de `VALIDADO` ou `REJEITADO` → **400** `VALIDACAO`; motorista já avaliado → **409** `MOTORISTA_JA_AVALIADO`; rejeitar sem parecer → **422** `PARECER_OBRIGATORIO`. Grava `validacoes` e `auditorias` (acao `VALIDACAO_MOTORISTA`) e notifica o motorista (tipos `PROPOSTA_ACEITA`, título "Cadastro aprovado", e `PROPOSTA_RECUSADA`, título "Cadastro rejeitado").
-- **Atenção:** o cadastro público (`POST /usuarios`) aceita `tipo = ADMINISTRADOR`, então qualquer pessoa pode criar um administrador e aprovar motoristas. Isso **só serve para uso acadêmico e não serve para produção**.
+- O cadastro público (`POST /usuarios`) aceita somente `RESPONSAVEL` e `MOTORISTA`. Enviar `tipo = ADMINISTRADOR` retorna **403** `SEM_PERMISSAO`, inclusive com o header de um administrador. Administradores já cadastrados acessam o sistema pelo login existente.
 - Placa duplicada → **409** `PLACA_JA_CADASTRADA`.
 - Aluno: grava `alunos`, `alunos_enderecos` (tipo `RESIDENCIAL`, principal) e `responsaveis_alunos` (`status_vinculo ATIVO`, `acompanha_rota true`).
 - Atendimento: motorista + escola + horário de início da aula + horário de saída do motorista + horário de saída da

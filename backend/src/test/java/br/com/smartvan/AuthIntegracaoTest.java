@@ -78,6 +78,17 @@ class AuthIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void administradorExistenteEntraEAcessaSuaArea() throws Exception {
+        Usuario administrador = fabrica.administrador();
+
+        login(administrador.getEmail(), Fabrica.SENHA)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usuario.id").value(administrador.getId()))
+                .andExpect(jsonPath("$.usuario.tipo").value("ADMINISTRADOR"));
+        fazGet("/admin/motoristas/pendentes", administrador).andExpect(status().isOk());
+    }
+
+    @Test
     void loginAtualizaUltimoAcesso() throws Exception {
         Responsavel r = fabrica.responsavel();
         assertThat(r.getUltimoAcesso()).isNull();
