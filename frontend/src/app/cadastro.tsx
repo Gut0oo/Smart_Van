@@ -10,7 +10,7 @@ import { mensagemDeErro } from '@/services/useCarregar';
 export default function CadastroScreen() {
   const router = useRouter();
   const { entrar } = useAuth();
-  const [tipo, setTipo] = useState<TipoUsuario>('RESPONSAVEL');
+  const [tipo, setTipo] = useState<Exclude<TipoUsuario, 'ADMINISTRADOR'>>('RESPONSAVEL');
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -54,7 +54,6 @@ export default function CadastroScreen() {
         opcoes={[
           { valor: 'RESPONSAVEL', texto: 'Responsável' },
           { valor: 'MOTORISTA', texto: 'Motorista' },
-          { valor: 'ADMINISTRADOR', texto: 'Administrador' },
         ]}
       />
       <Campo rotulo="Nome completo" value={nome} onChangeText={setNome} />

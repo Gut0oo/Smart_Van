@@ -9,6 +9,7 @@ import br.com.smartvan.model.Motorista;
 import br.com.smartvan.model.Responsavel;
 import br.com.smartvan.model.Validacao;
 import br.com.smartvan.repository.MotoristaRepository;
+import br.com.smartvan.repository.UsuarioRepository;
 import br.com.smartvan.repository.ValidacaoRepository;
 import br.com.smartvan.suporte.TesteIntegracaoBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ class ValidacaoMotoristaIntegracaoTest extends TesteIntegracaoBase {
 
     @Autowired ValidacaoRepository validacoes;
     @Autowired MotoristaRepository motoristas;
+    @Autowired UsuarioRepository usuarios;
 
     Administrador adm;
     Motorista pendente;
@@ -155,11 +157,16 @@ class ValidacaoMotoristaIntegracaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void cadastroPublicoPermiteCriarAdministrador() throws Exception {
+    void cadastroPublicoRecusaAdministradorSemCriarUsuario() throws Exception {
         Map<String, Object> corpo = Map.of("nome", "Adm Público", "email", "adm.publico@teste.com", "senha", "senha123",
                 "cpf", "98765432100", "telefone", "11999990000", "tipo", TipoUsuario.ADMINISTRADOR.name());
+        long quantidadeAntes = usuarios.count();
 
-        fazPost("/usuarios", corpo).andExpect(status().isCreated())
-                .andExpect(jsonPath("$.tipo").value("ADMINISTRADOR"));
+        fazPost("/usuarios", corpo).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("SEM_PERMISSAO"));
+        fazPost("/usuarios", corpo, adm).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("SEM_PERMISSAO"));
+
+        assertThat(usuarios.count()).isEqualTo(quantidadeAntes);
     }
 }
