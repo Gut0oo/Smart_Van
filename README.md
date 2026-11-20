@@ -8,11 +8,6 @@ Para os motoristas, o aplicativo funciona como uma ferramenta de gestão, permit
 
 Para os pais, a plataforma facilita a busca por um transporte escolar confiável. É possível cadastrar as crianças, seus endereços e escolas, encontrar motoristas com base na localização, avaliações e escolas atendidas, além de acompanhar mensalidades, avisar quando o filho não irá à aula e acompanhar o trajeto do transporte.
 
-## 🔹Estrutura do Projeto:
-
-```
-
-```
 
 ## 🔹Ferramentas: 
 - Java
